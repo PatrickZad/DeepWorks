@@ -1,8 +1,7 @@
 import torch.nn as nn
-from torch.utils.data.dataset import Dataset
 from torch.utils.data.dataloader import DataLoader
 import torch.optim as optim
-
+import local_dataset
 
 class VGG19(nn.Module):
 
@@ -22,18 +21,6 @@ class VGG19(nn.Module):
         out4 = self.conv4(out3)
         out5 = self.conv5(out4)
         return self.fullCon(out5)
-
-
-class TrainData(Dataset):
-
-    def __init__(self, fileDir):
-        pass
-
-    def __len__(self):
-        pass
-
-    def __getitem__(self, index):
-        pass
 
 
 def poolSelect(pool):
@@ -116,20 +103,25 @@ def fullConnectedSoftm(classNum):
         nn.Softmax()
     )
 
+
 def loadModel():
     pass
 
-def trainModel(vgg, dataLoader,loss,optim):
+
+def trainModel(vgg, dataLoader, loss, optim, repeat=5000):
     pass
 
-def testModel(vgg,testDataset):
+
+def testModel(vgg, testDataset):
     pass
 
-if __name__=="__main__":
-    trainpath=""
-    testpath=""
-    vgg=VGG19()
-    trainset=TrainData(trainpath)
-    dataLoader=DataLoader(trainset,batch_size=256)
-    loss=nn.CrossEntropyLoss()
-    optim=optim.SGD()
+
+if __name__ == "__main__":
+    trainpath = ""
+    testpath = ""
+    vgg = VGG19()
+    trainset = local_dataset.Cifar10Train()
+    dataLoader = DataLoader(trainset, batch_size=256)
+    loss = nn.CrossEntropyLoss()
+    optim = optim.SGD()
+
