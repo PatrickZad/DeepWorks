@@ -29,3 +29,25 @@ class Cifar10Train(Dataset):
 
     def __getitem__(self, item):
         return self.imageTensorList[item], self.lableTensorList[item]
+
+
+class Cifar10Test(Dataset):
+    def __init__(self):
+        batchFile = r'./data/cifar-10-batches-py/test_batch'
+        self.imageTensorList = []
+        self.lableTensorList = []
+        with open(batchFile, 'rb') as file:
+            batchDict = pickle.load(file, encoding='bytes')
+            for i in range(len(batchDict['data'])):
+                imageArray = np.array(batchDict['data'][i]).reshape((3, 32, 32))
+                imageTensor = torch.from_numpy(imageArray)
+                self.imageTensorList.append(imageTensor)
+                lableTensor = torch.zeros(10)
+                lableTensor[batchDict['lable'][i]] = 1
+                self.lableTensorList.append(lableTensor)
+
+    def __len__(self):
+        return len(self.imageTensorList)
+
+    def __getitem__(self, item):
+        return self.imageTensorList[item], self.lableTensorList[item]

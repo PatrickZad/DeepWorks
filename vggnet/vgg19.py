@@ -1,4 +1,5 @@
 import torch.nn as nn
+import torch
 from torch.utils.data.dataloader import DataLoader
 import torch.optim as optim
 import local_dataset
@@ -100,7 +101,7 @@ def fullConnectedSoftm(classNum):
         nn.Dropout(),
         nn.Linear(4096, 4096),
         nn.ReLU(True),
-        nn.Dropout(),
+        nn.Dropout(0.5),
         nn.Linear(4096, classNum),
         nn.Softmax()
     )
@@ -112,29 +113,63 @@ def loadModel():
     return result
 
 
-def trainModel(vgg, dataLoader, lossFunc, optimizer, repeat=5000):
+def trainModel(vgg, trainDataset, validDataset, repeat=5000, minchange=10 ** (-5)):
+    learningRate = 10 ** (-2)
+    optimizer = optim.SGD(vgg.parameters(), momentum=0.9, lr=learningRate)
+    lossFunc = nn.CrossEntropyLoss()
+    trainLoader = DataLoader(trainset, batch_size=256)
+    validLoader = DataLoader(validDataset, batch_size=256)
+    lastLoss = 0
+    lastAccuracy = 0
     for epoch in range(repeat):
-        for step, (x, y) in enumerate(dataLoader):
+        for step, (x, y) in enumerate(trainLoader):
             output = vgg(x)
             loss = lossFunc(output, y)
             optimizer.zero_grad()
             loss.backward()
             optimizer.step()
-            if step % 100 == 0:
-                print('loss:' + loss)
-    with open(r'./vggmodel.pkl', 'wb') as modelFile:
-        pickle.dump(vgg, modelFile)
+            # print loss
+            if step % 10 == 0:
+                print('loss:' + loss.data[0])
+            # stop if necessary
+            if abs(loss.data[0] - lastLoss) < minchange:
+                return
+            lastLoss = loss.data[0]
+            # validate and shrink learning rate if necessary
+            accuracy = validset(vgg, validLoader)
+            if abs(accuracy - lastAccuracy) < minchange:
+                learningRate /= 10
+                optimizer = optim.SGD(momentum=0.9, lr=learningRate)
+
+
+def validate(vgg, validateLoader):
+    accuracy = 0
+    for image, lable in validateLoader:
+        out = vgg(image)
+        outMaxIndex = torch.max(out, 0)[1]
+        lableMaxIndex = torch.max(lable, 0)[0]
+        if outMaxIndex[0] == lableMaxIndex[0]:
+            accuracy += 1
+    return accuracy / 256
 
 
 def testModel(vgg, testDataset):
-    pass
+    error = 0
+    for image, lable in testDataset.imageTensorList, testDataset.lableTensorList:
+        out = vgg(image)
+        outMaxIndex = torch.max(out, 0)[1]
+        lableMaxIndex = torch.max(lable, 0)[0]
+        if outMaxIndex[0] != lableMaxIndex[0]:
+            error += 1
+    return 1 - error / len(testDataset.imageTensorList)
 
 
 if __name__ == "__main__":
-    trainpath = ""
-    testpath = ""
-    vgg = VGG19()
+    vgg = VGG19(10)
     trainset = local_dataset.Cifar10Train()
-    dataLoader = DataLoader(trainset, batch_size=256)
-    loss = nn.CrossEntropyLoss()
-    optim = optim.SGD()
+    validset = local_dataset.Cifar10Test()
+    trainModel(vgg, trainset, validset)
+    testset = local_dataset.Cifar10Test()
+    print("test accuracy:" + testModel(vgg, testset))
+    with open(r'./vggmodel.pkl', 'wb') as modelFile:
+        pickle.dump(vgg, modelFile)
