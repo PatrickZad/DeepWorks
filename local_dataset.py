@@ -20,7 +20,8 @@ class Cifar10Train(Dataset):
                         imageArray = np.array(batchDict['data'][i]).reshape((3, 32, 32))
                         imageTensor = torch.from_numpy(imageArray)
                         self.imageTensorList.append(imageTensor)
-                        lableTensor = torch.tensor(list(batchDict['lable'][i]))
+                        lableTensor = torch.zeros(10)
+                        lableTensor[batchDict['lable'][i]] = 1
                         self.lableTensorList.append(lableTensor)
 
     def __len__(self):

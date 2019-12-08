@@ -2,6 +2,8 @@ import torch.nn as nn
 from torch.utils.data.dataloader import DataLoader
 import torch.optim as optim
 import local_dataset
+import pickle
+
 
 class VGG19(nn.Module):
 
@@ -105,11 +107,23 @@ def fullConnectedSoftm(classNum):
 
 
 def loadModel():
-    pass
+    with open(r'./vggmodel.pkl', 'rb') as modelFile:
+        result = pickle.load(modelFile, encoding='bytes')
+    return result
 
 
-def trainModel(vgg, dataLoader, loss, optim, repeat=5000):
-    pass
+def trainModel(vgg, dataLoader, lossFunc, optimizer, repeat=5000):
+    for epoch in range(repeat):
+        for step, (x, y) in enumerate(dataLoader):
+            output = vgg(x)
+            loss = lossFunc(output, y)
+            optimizer.zero_grad()
+            loss.backward()
+            optimizer.step()
+            if step % 100 == 0:
+                print('loss:' + loss)
+    with open(r'./vggmodel.pkl', 'wb') as modelFile:
+        pickle.dump(vgg, modelFile)
 
 
 def testModel(vgg, testDataset):
@@ -124,4 +138,3 @@ if __name__ == "__main__":
     dataLoader = DataLoader(trainset, batch_size=256)
     loss = nn.CrossEntropyLoss()
     optim = optim.SGD()
-
