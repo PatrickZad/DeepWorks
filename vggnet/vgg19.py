@@ -130,7 +130,7 @@ def trainModel(vgg, trainDataset, validDataset, repeat=5000, minchange=10 ** (-5
             optimizer.step()
             # print loss
             if step % 10 == 0:
-                print('loss:' + loss.data[0])
+                print('loss:', loss.data[0])
             # stop if necessary
             if abs(loss.data[0] - lastLoss) < minchange:
                 return
