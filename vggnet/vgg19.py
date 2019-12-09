@@ -10,6 +10,7 @@ class VGG19(nn.Module):
 
     # pool is "max" or "average"
     def __init__(self, classNum, pool="max"):
+        super(VGG19, self).__init__()
         self.conv1 = conv1(pool)
         self.conv2 = conv2(pool)
         self.conv3 = conv3(pool)
