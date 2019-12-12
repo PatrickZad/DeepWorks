@@ -34,41 +34,57 @@ def poolSelect(pool):
 
 
 def conv1(pool="max"):
+    conv1_1=nn.Conv2d(3, 64, kernel_size=3, padding=1)
+    nn.init.xavier_uniform_(conv1_1.weight)
+    conv1_2=nn.Conv2d(64, 64, kernel_size=3, padding=1)
+    nn.init.xavier_uniform_(conv1_2.weight)
     return nn.Sequential(
-        nn.Conv2d(3, 64, kernel_size=3, padding=1),
+        conv1_1,
         nn.ReLU(True),
-        nn.Conv2d(64, 64, kernel_size=3, padding=1),
+        conv1_2,
         nn.ReLU(True),
         poolSelect(pool)
     )
 
 
 def conv2(pool="max"):
+    conv2_1=nn.Conv2d(64, 128, kernel_size=3, padding=1)
+    nn.init.xavier_uniform_(conv2_1.weight)
+    conv2_2=nn.Conv2d(128, 128, kernel_size=3, padding=1)
+    nn.init.xavier_uniform_(conv2_2.weight)
     return nn.Sequential(
-        nn.Conv2d(64, 128, kernel_size=3, padding=1),
+        conv2_1,
         nn.ReLU(True),
-        nn.Conv2d(128, 128, kernel_size=3, padding=1),
+        conv2_2,
         nn.ReLU(True),
         poolSelect(pool)
     )
 
 
 def conv3(pool="max"):
+    conv3_1=nn.Conv2d(128, 256, kernel_size=3, padding=1)
+    nn.init.xavier_uniform_(conv3_1.weight)
+    conv3_2=nn.Conv2d(256, 256, kernel_size=3, padding=1)
+    nn.init.xavier_uniform_(conv3_2.weight)
+    conv3_3=nn.Conv2d(256, 256, kernel_size=3, padding=1)
+    nn.init.xavier_uniform_(conv3_3.weight)
+    conv3_4=nn.Conv2d(256, 256, kernel_size=3, padding=1)
+    nn.init.xavier_uniform_(conv3_4.weight)
     return nn.Sequential(
-        nn.Conv2d(128, 256, kernel_size=3, padding=1),
+        conv3_1,
         nn.ReLU(True),
-        nn.Conv2d(256, 256, kernel_size=3, padding=1),
+        conv3_2,
         nn.ReLU(True),
-        nn.Conv2d(256, 256, kernel_size=3, padding=1),
+        conv3_3,
         nn.ReLU(True),
-        nn.Conv2d(256, 256, kernel_size=3, padding=1),
+        conv3_4,
         nn.ReLU(True),
         poolSelect(pool)
     )
 
 
 def conv4(pool="max"):
-    return nn.Sequential(
+    conv4model=nn.Sequential(
         nn.Conv2d(256, 512, kernel_size=3, padding=1),
         nn.ReLU(True),
         nn.Conv2d(512, 512, kernel_size=3, padding=1),
@@ -79,10 +95,13 @@ def conv4(pool="max"):
         nn.ReLU(True),
         poolSelect(pool)
     )
-
+    for layer in conv4model.children():
+        if type(layer) is 'torch.nn.Conv2d':
+            nn.init.xavier_uniform_(layer.weight)
+    return conv4model
 
 def conv5(pool="max"):
-    return nn.Sequential(
+    conv5model=nn.Sequential(
         nn.Conv2d(512, 512, kernel_size=3, padding=1),
         nn.ReLU(True),
         nn.Conv2d(512, 512, kernel_size=3, padding=1),
@@ -93,10 +112,13 @@ def conv5(pool="max"):
         nn.ReLU(True),
         poolSelect(pool)
     )
-
+    for layer in conv5model.children():
+        if type(layer) is 'torch.nn.Conv2d':
+            nn.init.xavier_uniform_(layer.weight)
+    return conv5model
 
 def fullConnectedSoftm(classNum):
-    return nn.Sequential(
+    conmodel=nn.Sequential(
         nn.Linear(512 * 7 * 7, 4096),
         nn.ReLU(True),
         nn.Dropout(),
@@ -106,7 +128,10 @@ def fullConnectedSoftm(classNum):
         nn.Linear(4096, classNum),
         nn.Softmax()
     )
-
+    for layer in conmodel.children():
+        if type(layer) is 'torch.nn.Linear':
+            nn.init.xavier_uniform_(layer.weight)
+    return conmodel
 
 def loadModel():
     with open(r'./vggmodel.pkl', 'rb') as modelFile:
@@ -116,7 +141,7 @@ def loadModel():
 
 def trainModel(vgg, trainDataset, validDataset, repeat=5000, minchange=10 ** (-5)):
     learningRate = 10 ** (-2)
-    optimizer = optim.SGD(vgg.parameters(), momentum=0.9, lr=learningRate)
+    optimizer = optim.SGD(vgg.parameters(), momentum=0.9, lr=learningRate, weight_decay=5*10**(-4))
     lossFunc = nn.CrossEntropyLoss()
     trainLoader = DataLoader(trainset, batch_size=256)
     validLoader = DataLoader(validDataset, batch_size=256)
