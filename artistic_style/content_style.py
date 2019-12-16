@@ -13,6 +13,9 @@ class StyleTransfer:
     def __init__(self):
         self.vgg = self.__buildAverageVgg()
 
+    def __init__(self, vgg):
+        self.vgg = vgg
+
     def __buildAverageVgg(self):
         if os.path.exists(r'./averageVgg.pkl'):
             with open(r'./averageVgg.pkl', 'rb') as vggfile:
@@ -98,4 +101,17 @@ class StyleTransfer:
         styleTensor = torch.from_numpy(styleArray)
         styleTensor = torch.transpose(styleTensor, 1, 2)
         styleTensor = torch.transpose(styleTensor, 0, 1)
-        return self.transfer(contentTensor, styleTensor)
+        result = self.transfer(contentTensor, styleTensor)
+        result.transpose(0, 1)
+        result.transpose(1, 2)
+        return result.numpy()
+
+
+if __name__ == '__main__':
+    from torchvision.models import vgg19
+    import imageio
+
+    vgg = vgg19(True)
+    transfer = StyleTransfer(vgg)
+    result = transfer.styleTrans(r'../data/content.jpg', r'../data/content.jpg')
+    imageio.imwrite(r'../data/trans.jpg', result)
