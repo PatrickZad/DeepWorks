@@ -6,6 +6,10 @@ import pickle
 import numpy as np
 import sys
 import re
+import skimage.io as imgio
+from skimage.transform import resize
+import random
+
 
 if re.match(r'.*inux.*', sys.platform()):
     imagenetdir = r'/run/media/patrick/6114f130-f537-4999-b5f6-33fe2afc51db/imagenet12'
@@ -92,8 +96,30 @@ class ImagenetTrain(Dataset):
     def __getitem__(self, item):
 
         pass
-
-
+def dataAugment(originalImgArray,scale=range(256,513)):
+    # multi-scale and reshape
+    shortLen=scale[random.randint(0,len(scale)-1)]
+    shape=originalImgArray.shape
+    if shape[0]>shape[1]:
+        shape[0]*=shortLen/shape[1]
+        shape[1]=shortLen
+    else:
+        shape[1]*=shortLen/shape[0]
+        shape[0]=shortLen
+    scaledImg=resize(originalImgArray,shape).transpose((2,0,1))
+    # randome crop
+    shape=scaledImg.shape
+    h_limt=shape[0]-224
+    w_limt=shape[1]-224
+    h_offset=random.randint(0,h_limt)
+    w_offset=random.randint(0,w_limt)
+    cropped=scaledImg[:,h_offset:h_offset+225,w_offset:w_offset+225]
+    # horizontal reflection/flip
+    rand=random.randint(0,1)
+    if rand > 0:
+        cropped=np.flip(cropped,2)
+    # alter RGB intensities
+        
 class ImagenetTest(Dataset):
     def __init__(self):
         pass
