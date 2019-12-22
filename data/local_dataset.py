@@ -93,8 +93,22 @@ class ImagenetTrain(Dataset):
         return self.dataLength
 
     def __getitem__(self, item):
-
-        pass
+        objid = None
+        sum = -1
+        for id, amount in self.ID_amount_dict.items():
+            if item > sum and item <= sum + amount:
+                objid = id
+                break
+            else:
+                sum += amount
+        out = torch.zeros(1000)
+        out[self.ID_lable_dict[objid]] = 1
+        dir = os.path.join(imagenetdir, imagenetSubpath['img']['train'])
+        dir = os.path.join(dir, objid)
+        filename = os.listdir(dir)[item - sum]
+        originImg = imgio.imread(os.path.join(dir, filename))
+        input = dataAugment(originImg)
+        return input, out
 
 
 def dataAugment(originalImgArray, scale=range(256, 513)):

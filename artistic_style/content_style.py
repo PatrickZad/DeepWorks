@@ -1,5 +1,5 @@
 import vggnet.vgg19 as vggnet
-import data.loclocal_dataset
+from data.local_dataset import ImagenetTrain,ImagenetVal,ImagenetTest
 import pickle
 import os
 import numpy as np
@@ -22,10 +22,10 @@ class StyleTransfer:
                 model = pickle.load(vggfile, encoding='bytes')
             return model
         vgg = vggnet.VGG19(10, 'average')
-        trainset = local_dataset.Cifar10Train()
-        validset = local_dataset.Cifar10Test()
+        trainset = ImagenetTrain()
+        validset = ImagenetVal()
         vggnet.trainModel(vgg, trainset, validset)
-        testset = local_dataset.Cifar10Test()
+        testset = ImagenetTest()
         print("test accuracy:" + vggnet.testModel(vgg, testset))
         with open(r'./averageVgg.pkl', 'wb') as modelFile:
             pickle.dump(vgg, modelFile)

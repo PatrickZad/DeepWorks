@@ -2,7 +2,7 @@ import torch.nn as nn
 import torch
 from torch.utils.data.dataloader import DataLoader
 import torch.optim as optim
-import data.local_dataset
+from data.local_dataset import ImagenetTrain, ImagenetVal, ImagenetTest
 import pickle
 
 configs = {
@@ -137,11 +137,12 @@ class VGGnet(nn.Module):
         return conmodel
 
     def trainModel(self, trainDataset, validDataset, repeat=5000, minchange=10 ** (-5)):
+        # TODO validation
         learningRate = 10 ** (-2)
         optimizer = optim.SGD(self.parameters(), momentum=0.9, lr=learningRate, weight_decay=5 * 10 ** (-4))
         lossFunc = nn.CrossEntropyLoss()
         trainLoader = DataLoader(trainDataset, batch_size=256)
-        validLoader = DataLoader(validDataset, batch_size=256)
+        # validLoader = DataLoader(validDataset, batch_size=256)
         lastLoss = 0
         lastAccuracy = 0
         for epoch in range(repeat):
@@ -159,10 +160,11 @@ class VGGnet(nn.Module):
                     return
                 lastLoss = loss.data[0]
                 # validate and shrink learning rate if necessary
+                '''
                 accuracy = self.__validate(validLoader)
                 if abs(accuracy - lastAccuracy) < minchange:
                     learningRate /= 10
-                    optimizer = optim.SGD(momentum=0.9, lr=learningRate)
+                    optimizer = optim.SGD(momentum=0.9, lr=learningRate)'''
 
     def __validate(self, validateLoader):
         accuracy = 0
@@ -197,4 +199,8 @@ def loadModel():
 
 
 if __name__ == "__main__":
-    pass
+    imagenetTrain = ImagenetTrain()
+    imagenetVal = ImagenetVal()
+    imagenetTest = ImagenetTest()
+    vgg = VGGnet()
+    vgg.trainModel(imagenetTrain, imagenetVal)
