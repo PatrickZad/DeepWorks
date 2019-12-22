@@ -147,6 +147,9 @@ class VGGnet(nn.Module):
         lastAccuracy = 0
         for epoch in range(repeat):
             for step, (x, y) in enumerate(trainLoader):
+                if torch.cuda.is_available():
+                    x = x.cuda()
+                    y = y.cuda()
                 output = self(x)
                 loss = lossFunc(output, y)
                 optimizer.zero_grad()
@@ -203,4 +206,6 @@ if __name__ == "__main__":
     imagenetVal = ImagenetVal()
     imagenetTest = ImagenetTest()
     vgg = VGGnet()
+    if torch.cuda.is_available():
+        vgg = vgg.cuda()
     vgg.trainModel(imagenetTrain, imagenetVal)
