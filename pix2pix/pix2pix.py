@@ -10,7 +10,7 @@ class Pix2Pix():
     def __basicGenerator(self):
         pass
 
-    def train(self):
+    def trainModel(self):
         pass
 
     def __call__(self, *args, **kwargs):
@@ -49,31 +49,51 @@ class UnetGenerator(nn.Module):
 
 
 def cklayer(inChannel, outChannel, ):
+    conv = nn.Conv2d(inChannel, outChannel, kernel_size=4, padding=1, stride=2)
+    nn.init.normal(conv.weight.data, mean=0, std=0.02)
+    bn = nn.BatchNorm2d(outChannel)
+    nn.init.normal(bn.weight.data, mean=0, std=0.02)
+    nn.init.constant(bn.bias.data, 0)
     return nn.Sequential(
-        nn.Conv2d(inChannel, outChannel, kernel_size=4, padding=1, stride=2),
-        nn.BatchNorm2d(outChannel),
+        conv,
+        bn,
         nn.LeakyReLU(0.2))
 
 
 def transpose_cklayer(inChannel, outChannel):
+    conv = nn.ConvTranspose2d(inChannel, outChannel, kernel_size=4, padding=1, stride=2)
+    nn.init.normal(conv.weight.data, mean=0, std=0.02)
+    bn = nn.BatchNorm2d(outChannel)
+    nn.init.normal(bn.weight.data, mean=0, std=0.02)
+    nn.init.constant(bn.bias.data, 0)
     return nn.Sequential(
-        nn.ConvTranspose2d(inChannel, outChannel, padding=1, stride=2, kernel_size=4),
-        nn.BatchNorm2d(outChannel),
+        conv,
+        bn,
         nn.ReLU())
 
 
 def cdklayer(inChannel, outChannel):
+    conv = nn.Conv2d(inChannel, outChannel, kernel_size=4, padding=1, stride=2)
+    nn.init.normal(conv.weight.data, mean=0, std=0.02)
+    bn = nn.BatchNorm2d(outChannel)
+    nn.init.normal(bn.weight.data, mean=0, std=0.02)
+    nn.init.constant(bn.bias.data, 0)
     return nn.Sequential(
-        nn.Conv2d(inChannel, outChannel, kernel_size=4, padding=1, stride=2),
-        nn.BatchNorm2d(outChannel),
+        conv,
+        bn,
         nn.Dropout2d(0.5),
         nn.LeakyReLU(0.2))
 
 
 def transpose_cdklayer(inChannel, outChannel):
+    conv = nn.ConvTranspose2d(inChannel, outChannel, kernel_size=4, padding=1, stride=2)
+    nn.init.normal(conv.weight.data, mean=0, std=0.02)
+    bn = nn.BatchNorm2d(outChannel)
+    nn.init.normal(bn.weight.data, mean=0, std=0.02)
+    nn.init.constant(bn.bias.data, 0)
     return nn.Sequential(
-        nn.Conv2d(inChannel, outChannel, kernel_size=4, padding=1, stride=2),
-        nn.BatchNorm2d(outChannel),
+        conv,
+        bn,
         nn.Dropout2d(0.5),
         nn.ReLU())
 
@@ -122,14 +142,20 @@ class UnetDecoder():
                                         nn.Tanh()))]))
 
 
-discriminatorPatchSize = {'70by70': (70, 64),
-                          '1by1': (1),
-                          '16by16': (16),
-                          '286by286': (286)}
+discriminatorPatchSize = {'70by70': (64, 128, 256, 512),
+                          '1by1': (64, 128),
+                          '16by16': (64, 128),
+                          '286by286': (64, 128, 256, 512, 512, 512)}
 
 
 class Discriminator(nn.Module):
-    def __init__(self, patchsize):
+    def __init__(self, patchsize='70by70', inchannels=3):
+        architecture = discriminatorPatchSize[patchsize]
+        if patchsize is not '1by1':
+            self.add_module('dis0', nn.Sequential(nn.Conv2d(inchannels, kernel_size=4, stride=2, padding=1),
+                                                  nn.LeakyReLU(0.2)))
+            for i in range(1,len(architecture)):
+                self.add_module()
         pass
 
     def forward(self, input):
