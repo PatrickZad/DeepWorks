@@ -13,9 +13,11 @@ import random
 if re.match(r'.*inux.*', sys.platform()):
     imagenetdir = r'/run/media/patrick/6114f130-f537-4999-b5f6-33fe2afc51db/imagenet12'
     cifar10dir = r'/run/media/patrick/6114f130-f537-4999-b5f6-33fe2afc51db/cifar10'
+    facadedir=r''
 else:
     imagenetdir = r''
     cifar10dir = r''
+    facadedir=r'F:\CMPfacade'
 imagenetSubpath = {'img': {'train': 'img_train', 'test': 'img_test', 'train_t3': 'img_train_t3', 'val': 'img_val'}, \
                    'devkit': {'t3': 'ILSVRC2012_devkit_t3', 't12': 'ILSVRC2012_devkit_t12'},
                    'bbox': {'test_gogs': 'bbox_test_gogs', \
@@ -183,3 +185,18 @@ class ImagenetVal(Dataset):
 
     def __getitem__(self, item):
         pass
+
+def facadesets():
+    pass
+
+class FacadeDataset(Dataset):
+    def __init__(self):
+        self.photodir = os.path.join(facadedir, 'photos')
+        self.archidir = os.path.join(facadedir, 'archis')
+        photo_names = os.listdir(self.photodir)
+        self.ids=[file[:-4] for file in photo_names]
+    def __len__(self):
+        return len(self.ids)
+    def __getitem__(self, index):
+        archiPath=os.path.join(self.archidir,self.ids[index]+'.png')
+        photoPath=os.path.join(self.photodir,self.ids[index]+'.jpg')
