@@ -9,15 +9,16 @@ import re
 import skimage.io as imgio
 from skimage.transform import resize
 import random
+import data.augmentation as aug
 
 if re.match(r'.*inux.*', sys.platform()):
     imagenetdir = r'/run/media/patrick/6114f130-f537-4999-b5f6-33fe2afc51db/imagenet12'
     cifar10dir = r'/run/media/patrick/6114f130-f537-4999-b5f6-33fe2afc51db/cifar10'
-    facadedir=r''
+    facadedir = r''
 else:
     imagenetdir = r''
     cifar10dir = r''
-    facadedir=r'F:\CMPfacade'
+    facadedir = r'F:\CMPfacade'
 imagenetSubpath = {'img': {'train': 'img_train', 'test': 'img_test', 'train_t3': 'img_train_t3', 'val': 'img_val'}, \
                    'devkit': {'t3': 'ILSVRC2012_devkit_t3', 't12': 'ILSVRC2012_devkit_t12'},
                    'bbox': {'test_gogs': 'bbox_test_gogs', \
@@ -186,17 +187,31 @@ class ImagenetVal(Dataset):
     def __getitem__(self, item):
         pass
 
+
 def facadesets():
-    pass
+    photodir = os.path.join(facadedir, 'photos')
+    archidir = os.path.join(facadedir, 'archis')
+    photo_names = os.listdir(photodir)
+    ids = [file[:-4] for file in photo_names]
+    index = np.arange(len(ids))
+    np.random.shuffle(index)
+    split = int(len(ids) / 3)
+    trainIds = ids[split:]
+    testIds = ids[:split]
+    return FacadeDataset(trainIds), FacadeDataset(testIds)
+
 
 class FacadeDataset(Dataset):
-    def __init__(self):
+    def __init__(self, ids):
+        self.ids = ids
         self.photodir = os.path.join(facadedir, 'photos')
         self.archidir = os.path.join(facadedir, 'archis')
-        photo_names = os.listdir(self.photodir)
-        self.ids=[file[:-4] for file in photo_names]
+
     def __len__(self):
         return len(self.ids)
+
     def __getitem__(self, index):
-        archiPath=os.path.join(self.archidir,self.ids[index]+'.png')
-        photoPath=os.path.join(self.photodir,self.ids[index]+'.jpg')
+        archiPath = os.path.join(self.archidir, self.ids[index] + '.png')
+        photoPath = os.path.join(self.photodir, self.ids[index] + '.jpg')
+        augs = aug.imageAugmentation((archiPath, photoPath), 286, 256)
+        return augs[0], augs[1]

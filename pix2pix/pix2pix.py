@@ -210,3 +210,13 @@ class PixelDiscriminator(nn.Module):
         out2 = self.conv2(out1)
         out3 = self.conv3(out2)
         return torch.mean(out3)
+
+
+class ImageDiscriminator(nn.Module):
+    def __init__(self, inchannels=3, targetchannels=3):
+        super.__init__(ImageDiscriminator, self)
+        # TODO
+
+    def forward(self, sketch, target):
+        # TODO
+        pass
