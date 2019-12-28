@@ -8,7 +8,7 @@ class Pix2Pix:
         self.generator = generator
         self.discriminator = discriminator
 
-    def trainModel(self, dataloader, l1_loss=True):
+    def trainModel(self, dataloader, l1_loss=None):
         self.generator.train()
         self.discriminator.train()
         d_optim = torch.optim.Adam(self.discriminator.parameters(), lr=0.0002, betas=(0.5, 0.999))
@@ -32,8 +32,8 @@ class Pix2Pix:
                 # optimize generator
                 discriminate_genera = self.discriminator(sketch, generate)
                 g_loss = cGAN_loss(discriminate_genera, torch.ones(batchsize))
-                if l1_loss:
-                    g_loss += L1_loss(target, generate)
+                if l1_loss is not None:
+                    g_loss += L1_loss(target, generate, l1_loss)
                 g_loss.backward()
                 g_optim.step()
 
@@ -47,7 +47,7 @@ def cGAN_loss(sketch, target):
     return nn.BCELoss(sketch, target)
 
 
-def L1_loss(target, generate):
+def L1_loss(target, generate, lam):
     batchsize = target.shape[0]
     abs = torch.abs(target - generate)
     return torch.sum(abs) / batchsize
@@ -84,8 +84,8 @@ class UnetGenerator(nn.Module):
         return dec_output
 
 
-def cklayer(inChannel, outChannel, stride=2):
-    conv = nn.Conv2d(inChannel, outChannel, kernel_size=4, padding=1, stride=stride)
+def cklayer(inChannel, outChannel, kernel=4, stride=2, pad=1):
+    conv = nn.Conv2d(inChannel, outChannel, kernel_size=kernel, padding=pad, stride=stride)
     nn.init.normal(conv.weight.data, mean=0, std=0.02)
     bn = nn.BatchNorm2d(outChannel)
     nn.init.normal(bn.weight.data, mean=0, std=0.02)
@@ -95,15 +95,15 @@ def cklayer(inChannel, outChannel, stride=2):
                          nn.LeakyReLU(0.2))
 
 
-def cklayer_no_bn(inChannel, outChannel, stride=2):
-    conv = nn.Conv2d(inChannel, outChannel, kernel_size=4, padding=1, stride=stride)
+def cklayer_no_bn(inChannel, outChannel, kernel=4, stride=2, pad=1):
+    conv = nn.Conv2d(inChannel, outChannel, kernel_size=kernel, padding=pad, stride=stride)
     nn.init.normal(conv.weight.data, mean=0, std=0.02)
     return nn.Sequential(conv,
                          nn.LeakyReLU(0.2))
 
 
-def transpose_cklayer(inChannel, outChannel, stride=2):
-    conv = nn.ConvTranspose2d(inChannel, outChannel, kernel_size=4, padding=1, stride=stride)
+def transpose_cklayer(inChannel, outChannel, kernel=4, stride=2, pad=1):
+    conv = nn.ConvTranspose2d(inChannel, outChannel, kernel_size=kernel, padding=pad, stride=stride)
     nn.init.normal(conv.weight.data, mean=0, std=0.02)
     bn = nn.BatchNorm2d(outChannel)
     nn.init.normal(bn.weight.data, mean=0, std=0.02)
@@ -114,8 +114,8 @@ def transpose_cklayer(inChannel, outChannel, stride=2):
         nn.ReLU())
 
 
-def cdklayer(inChannel, outChannel, stride=2):
-    conv = nn.Conv2d(inChannel, outChannel, kernel_size=4, padding=1, stride=stride)
+def cdklayer(inChannel, outChannel, kernel=4, stride=2, pad=1):
+    conv = nn.Conv2d(inChannel, outChannel, kernel_size=kernel, padding=pad, stride=stride)
     nn.init.normal(conv.weight.data, mean=0, std=0.02)
     bn = nn.BatchNorm2d(outChannel)
     nn.init.normal(bn.weight.data, mean=0, std=0.02)
@@ -127,8 +127,8 @@ def cdklayer(inChannel, outChannel, stride=2):
         nn.LeakyReLU(0.2))
 
 
-def transpose_cdklayer(inChannel, outChannel, stride=2):
-    conv = nn.ConvTranspose2d(inChannel, outChannel, kernel_size=4, padding=1, stride=stride)
+def transpose_cdklayer(inChannel, outChannel, kernel=4, stride=2, pad=1):
+    conv = nn.ConvTranspose2d(inChannel, outChannel, kernel_size=kernel, padding=pad, stride=stride)
     nn.init.normal(conv.weight.data, mean=0, std=0.02)
     bn = nn.BatchNorm2d(outChannel)
     nn.init.normal(bn.weight.data, mean=0, std=0.02)

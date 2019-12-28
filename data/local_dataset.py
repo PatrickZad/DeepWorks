@@ -14,11 +14,15 @@ import data.augmentation as aug
 if re.match(r'.*inux.*', sys.platform()):
     imagenetdir = r'/run/media/patrick/6114f130-f537-4999-b5f6-33fe2afc51db/imagenet12'
     cifar10dir = r'/run/media/patrick/6114f130-f537-4999-b5f6-33fe2afc51db/cifar10'
-    facadedir = r''
+    facadeDir = r'/home/patrick/PatrickWorkspace/datasets/facades'
+    cityscapesDir = r'/home/patrick/PatrickWorkspace/datasets/cityscapes'
+    edges2shoesDir = r'/home/patrick/PatrickWorkspace/datasets/edges2shoes'
 else:
     imagenetdir = r''
     cifar10dir = r''
-    facadedir = r'F:\CMPfacade'
+    facadeDir = r''
+    cityscapesDir = r''
+    edges2shoesDir = r''
 imagenetSubpath = {'img': {'train': 'img_train', 'test': 'img_test', 'train_t3': 'img_train_t3', 'val': 'img_val'}, \
                    'devkit': {'t3': 'ILSVRC2012_devkit_t3', 't12': 'ILSVRC2012_devkit_t12'},
                    'bbox': {'test_gogs': 'bbox_test_gogs', \
@@ -188,30 +192,61 @@ class ImagenetVal(Dataset):
         pass
 
 
-def facadesets():
-    photodir = os.path.join(facadedir, 'photos')
-    archidir = os.path.join(facadedir, 'archis')
-    photo_names = os.listdir(photodir)
-    ids = [file[:-4] for file in photo_names]
-    index = np.arange(len(ids))
-    np.random.shuffle(index)
-    split = int(len(ids) / 3)
-    trainIds = ids[split:]
-    testIds = ids[:split]
-    return FacadeDataset(trainIds), FacadeDataset(testIds)
-
-
-class FacadeDataset(Dataset):
-    def __init__(self, ids):
-        self.ids = ids
-        self.photodir = os.path.join(facadedir, 'photos')
-        self.archidir = os.path.join(facadedir, 'archis')
+class GenerativeBasic(Dataset):
+    def __init__(self):
+        self.dir = None
+        self.files = None
 
     def __len__(self):
-        return len(self.ids)
+        return len(self.files)
 
-    def __getitem__(self, index):
-        archiPath = os.path.join(self.archidir, self.ids[index] + '.png')
-        photoPath = os.path.join(self.photodir, self.ids[index] + '.jpg')
-        augs = aug.imageAugmentation((archiPath, photoPath), 286, 256)
-        return augs[0], augs[1]
+    def __getitem__(self, item):
+        imagepair = imgio.imread(os.path.join(self.dir, self.files[item]))
+        shape = imagepair.shape
+        real, label = np.split(imagepair, shape[1] / 2, axis=1)
+        real, label = aug.randRescaleAndTranspose(286, real, label)
+        real, label = aug.randCrop(256, real, label)
+        real, label = aug.randHFlip(real, label)
+        return real, label
+
+
+class FacadesTrain(GenerativeBasic):
+    def __init__(self):
+        self.dir = os.path.join(facadeDir, 'train')
+        self.files = os.listdir(self.dir)
+
+
+class FacadesTest(GenerativeBasic):
+    def __init__(self):
+        self.dir = os.path.join(facadeDir, 'test')
+        self.files = os.listdir(self.dir)
+
+
+class FacadesVal(GenerativeBasic):
+    def __init__(self):
+        self.dir = os.path.join(facadeDir, 'val')
+        self.files = os.listdir(self.dir)
+
+
+class CityscapesTrain(GenerativeBasic):
+    def __init__(self):
+        self.dir = os.path.join(cityscapesDir, 'train')
+        self.files = os.listdir(self.dir)
+
+
+class CityscapesVal(GenerativeBasic):
+    def __init__(self):
+        self.dir = os.path.join(cityscapesDir, 'val')
+        self.files = os.listdir(self.dir)
+
+
+class Edges2shoesTrain(GenerativeBasic):
+    def __init__(self):
+        self.dir = os.path.join(edges2shoesDir, 'train')
+        self.files = os.listdir(self.dir)
+
+
+class Edges2shoesVal(GenerativeBasic):
+    def __init__(self):
+        self.dir = os.path.join(edges2shoesDir, 'val')
+        self.files = os.listdir(self.dir)
