@@ -1,41 +1,78 @@
 import pix2pix.pix2pix as pix2
 import data.local_dataset as datas
 from torch.utils.data import DataLoader
+import re, sys, os
 
+if re.match(r'.*inux.*', sys.platform()):
+    storebase = r'/home/patrick/PatrickWorkspace/DeepWorks/store/pix2pix'
+else:
+    storebase = r''
 cityscapes = datas.CityscapesTrain()
 dataloader10 = DataLoader(cityscapes, batch_size=10, shuffle=True)
 dataloader1 = DataLoader(cityscapes, batch_size=1, shuffle=True)
 val = datas.CityscapesVal()
 valloader = DataLoader(dataset=val, batch_size=len(val))
-# loss
-
+'''
+loss
+'''
+store_dir = os.path.join(storebase, 'loss')
 # gan
 ganDiscriminator = pix2.PatchDiscriminator70(inchannels=0)
 generator = pix2.UnetGenerator()
 model = pix2.Pix2Pix(generator, ganDiscriminator, cgan=False)
-model.trainGanModel(dataloader10, l1=0)
+model.trainGanModel(dataloader1, l1=0)
+model.store(store_dir, 'gan_only')
 # cgan
 cganDiscriminator = pix2.PatchDiscriminator70()
 generator = pix2.UnetGenerator()
 model = pix2.Pix2Pix(generator, ganDiscriminator)
-model.trainGanModel(dataloader10, l1=0)
+model.trainGanModel(dataloader1, l1=0)
+model.store(store_dir, 'cgan_only')
 # l1 gan
 ganDiscriminator = pix2.PatchDiscriminator70(inchannels=0)
 generator = pix2.UnetGenerator()
 model = pix2.Pix2Pix(generator, ganDiscriminator, cgan=False)
-model.trainGanModel(dataloader10)
+model.trainGanModel(dataloader1)
+model.store(store_dir, 'gan_l1')
 # l1 cgan
 cganDiscriminator = pix2.PatchDiscriminator70()
 generator = pix2.UnetGenerator()
 model = pix2.Pix2Pix(generator, ganDiscriminator)
-model.trainGanModel(dataloader10)
-# generator
+model.trainGanModel(dataloader1)
+model.store(store_dir, 'cgan_l1')
+'''
+generator
+'''
+store_dir = os.path.join(storebase, 'generator')
 # ec
 ecgenerator = pix2.BasicGenerator()
+cganDiscriminator = pix2.PatchDiscriminator70()
+model = pix2.Pix2Pix(generator, ganDiscriminator)
+model.trainGanModel(dataloader10)
+model.store(store_dir, 'ec')
 # un
 ungenerator = pix2.UnetGenerator()
-# discriminator
+cganDiscriminator = pix2.PatchDiscriminator70()
+model = pix2.Pix2Pix(generator, ganDiscriminator)
+model.trainGanModel(dataloader10)
+model.store(store_dir, 'un')
+'''
+discriminator
+'''
+store_dir = os.path.join(storebase, 'discriminator')
+# pixel
 generator = pix2.UnetGenerator()
 pixelDiscriminator = pix2.PixelDiscriminator()
+model = pix2.Pix2Pix(generator, pixelDiscriminator)
+model.trainGanModel(dataloader1)
+model.store(store_dir, 'pixel')
+# patch
 patchDiscriminator = pix2.PatchDiscriminator70()
+model = pix2.Pix2Pix(generator, patchDiscriminator)
+model.trainGanModel(dataloader1)
+model.store(store_dir, 'patch')
+# image
 imageDiscriminator = pix2.ImageDiscriminator()
+model = pix2.Pix2Pix(generator, imageDiscriminator)
+model.trainGanModel(dataloader1)
+model.store(store_dir, 'image')

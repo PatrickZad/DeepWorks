@@ -1,13 +1,14 @@
 import torch
 import torch.nn as nn
 from collections import OrderedDict
+import os
 
 
 class Pix2Pix:
-    def __init__(self, generator, discriminator,cgan=True):
+    def __init__(self, generator, discriminator, cgan=True):
         self.generator = generator
         self.discriminator = discriminator
-        self.cgan=cgan
+        self.cgan = cgan
 
     def trainGanModel(self, dataloader, l1=100):
         self.generator.train()
@@ -25,8 +26,8 @@ class Pix2Pix:
                 batchsize = sketch.shape[0]
                 generate = self.generator(sketch)
                 if self.cgan:
-                    discriminate_real = self.discriminator(torch.cat((sketch, target),0))
-                    discriminate_genera = self.discriminator(torch.cat((sketch, generate),0))
+                    discriminate_real = self.discriminator(torch.cat((sketch, target), 0))
+                    discriminate_genera = self.discriminator(torch.cat((sketch, generate), 0))
                 else:
                     discriminate_real = self.discriminator(target)
                     discriminate_genera = self.discriminator(generate)
@@ -38,7 +39,7 @@ class Pix2Pix:
                 # optimize generator
                 discriminate_genera = self.discriminator(sketch, generate)
                 g_loss = ganloss(discriminate_genera, torch.ones(batchsize))
-                g_loss += l1*L1_loss(target, generate, l1_loss)
+                g_loss += l1 * L1_loss(target, generate, l1_loss)
                 g_loss.backward()
                 g_optim.step()
 
@@ -46,6 +47,10 @@ class Pix2Pix:
         self.generator.eval()
         self.discriminator.eval()
         return self.generator(sketch)
+
+    def store(self, dir,name):
+        torch.save(self.generator.stat_dict(), os.path.join(dir, name+'_generator.pt'))
+        torch.save(self.discriminator.stat_dict(), os.path.join(dir, name+'_discriminator.pt'))
 
 
 def L1_loss(target, generate):
