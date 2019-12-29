@@ -10,13 +10,14 @@ import skimage.io as imgio
 from skimage.transform import resize
 import random
 import data.augmentation as aug
+import cv2
 
-if re.match(r'.*inux.*', sys.platform()):
+if re.match(r'.*inux.*', sys.platform):
     imagenetdir = r'/run/media/patrick/6114f130-f537-4999-b5f6-33fe2afc51db/imagenet12'
     cifar10dir = r'/run/media/patrick/6114f130-f537-4999-b5f6-33fe2afc51db/cifar10'
     facadeDir = r'/home/patrick/PatrickWorkspace/datasets/facades'
-    cityscapesDir = r'/home/patrick/PatrickWorkspace/datasets/cityscapes'
-    edges2shoesDir = r'/home/patrick/PatrickWorkspace/datasets/edges2shoes'
+    cityscapesDir = r'/home/patrick/PatrickWorkspace/Datasets/cityscapes'
+    edges2shoesDir = r'/home/patrick/PatrickWorkspace/Datasets/edges2shoes'
 else:
     imagenetdir = r''
     cifar10dir = r''
@@ -201,13 +202,12 @@ class GenerativeBasic(Dataset):
         return len(self.files)
 
     def __getitem__(self, item):
-        imagepair = imgio.imread(os.path.join(self.dir, self.files[item]))
-        shape = imagepair.shape
-        real, label = np.split(imagepair, shape[1] / 2, axis=1)
-        real, label = aug.randRescaleAndTranspose(286, real, label)
-        real, label = aug.randCrop(256, real, label)
-        real, label = aug.randHFlip(real, label)
-        return real, label
+        imagepair = cv2.imread(os.path.join(self.dir, self.files[item]))
+        real, label = np.split(imagepair, 2, axis=1)
+        results = aug.randRescaleAndTranspose(286, real, label)
+        results = aug.randCrop(256, *results)
+        results = aug.randHFlip(*results)
+        return results[0],results[1]
 
 
 class FacadesTrain(GenerativeBasic):

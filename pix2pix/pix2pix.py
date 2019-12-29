@@ -14,7 +14,7 @@ class Pix2Pix:
         self.generator.train()
         self.discriminator.train()
         d_optim = torch.optim.Adam(self.discriminator.parameters(), lr=0.0002, betas=(0.5, 0.999))
-        g_optim = torch.optim.Adam(self.generator.parameters, lr=0.0002, betas=(0.5, 0.999))
+        g_optim = torch.optim.Adam(self.generator.parameters(), lr=0.0002, betas=(0.5, 0.999))
         ganloss = nn.BCELoss()
         for epoch in range(500):
             for step, (sketch, target) in enumerate(dataloader):
@@ -39,7 +39,7 @@ class Pix2Pix:
                 # optimize generator
                 discriminate_genera = self.discriminator(sketch, generate)
                 g_loss = ganloss(discriminate_genera, torch.ones(batchsize))
-                g_loss += l1 * L1_loss(target, generate, l1_loss)
+                g_loss += l1 * L1_loss(target, generate)
                 g_loss.backward()
                 g_optim.step()
 
@@ -61,7 +61,7 @@ def L1_loss(target, generate):
 
 class BasicGenerator(nn.Module):
     def __init__(self, inchannels=3, outchannels=3):
-        super.__init__(BasicGenerator, self)
+        super(BasicGenerator, self).__init__()
         self.basic_encoder = basic_encoder(inchannels)
         self.basic_decoder = basic_decoder(outchannels)
 
@@ -73,7 +73,7 @@ class BasicGenerator(nn.Module):
 
 class UnetGenerator(nn.Module):
     def __init__(self, inchannels=3, outchannels=3):
-        super.__init__(UnetGenerator, self)
+        super(UnetGenerator, self).__init__()
         self.basic_encoder = basic_encoder(inchannels)
         self.unet_decoder = unet_decoder(outchannels)
 
@@ -92,10 +92,10 @@ class UnetGenerator(nn.Module):
 
 def cklayer(inChannel, outChannel, kernel=4, stride=2, pad=1):
     conv = nn.Conv2d(inChannel, outChannel, kernel_size=kernel, padding=pad, stride=stride)
-    nn.init.normal(conv.weight.data, mean=0, std=0.02)
+    nn.init.normal_(conv.weight.data, mean=0, std=0.02)
     bn = nn.BatchNorm2d(outChannel)
-    nn.init.normal(bn.weight.data, mean=0, std=0.02)
-    nn.init.constant(bn.bias.data, 0)
+    nn.init.normal_(bn.weight.data, mean=0, std=0.02)
+    nn.init.constant_(bn.bias.data, 0)
     return nn.Sequential(conv,
                          bn,
                          nn.LeakyReLU(0.2))
@@ -103,7 +103,7 @@ def cklayer(inChannel, outChannel, kernel=4, stride=2, pad=1):
 
 def cklayer_no_bn(inChannel, outChannel, kernel=4, stride=2, pad=1):
     conv = nn.Conv2d(inChannel, outChannel, kernel_size=kernel, padding=pad, stride=stride)
-    nn.init.normal(conv.weight.data, mean=0, std=0.02)
+    nn.init.normal_(conv.weight.data, mean=0, std=0.02)
     return nn.Sequential(conv,
                          nn.LeakyReLU(0.2))
 
@@ -135,10 +135,10 @@ def cdklayer(inChannel, outChannel, kernel=4, stride=2, pad=1):
 
 def transpose_cdklayer(inChannel, outChannel, kernel=4, stride=2, pad=1):
     conv = nn.ConvTranspose2d(inChannel, outChannel, kernel_size=kernel, padding=pad, stride=stride)
-    nn.init.normal(conv.weight.data, mean=0, std=0.02)
+    nn.init.normal_(conv.weight.data, mean=0, std=0.02)
     bn = nn.BatchNorm2d(outChannel)
-    nn.init.normal(bn.weight.data, mean=0, std=0.02)
-    nn.init.constant(bn.bias.data, 0)
+    nn.init.normal_(bn.weight.data, mean=0, std=0.02)
+    nn.init.constant_(bn.bias.data, 0)
     return nn.Sequential(
         conv,
         bn,
@@ -185,7 +185,7 @@ def unet_decoder(outChannels=3):
 
 class PatchDiscriminator70(nn.Module):
     def __init__(self, inchannels=3, targetchannels=3):
-        super.__init__(PatchDiscriminator70, self)
+        super(PatchDiscriminator70, self).__init__()
         self.network = nn.Sequential(cklayer_no_bn(inchannels + targetchannels, 64),
                                      cklayer(64, 128),
                                      cklayer(128, 256),
@@ -200,7 +200,7 @@ class PatchDiscriminator70(nn.Module):
 
 class PixelDiscriminator(nn.Module):
     def __init__(self, inchannels=3, targetchannels=3):
-        super.__init__(PixelDiscriminator, self)
+        super(PixelDiscriminator, self).__init__()
         self.conv1 = nn.Sequential(nn.Conv2d(inchannels + targetchannels, 64, kernel_size=1, stride=1),
                                    nn.LeakyReLU(0.2))
         self.conv2 = nn.Sequential(nn.Conv2d(64, 128, kernel_size=1, stride=1),
@@ -218,7 +218,7 @@ class PixelDiscriminator(nn.Module):
 
 class ImageDiscriminator(nn.Module):
     def __init__(self, inchannels=3, targetchannels=3):
-        super.__init__(ImageDiscriminator, self)
+        super(ImageDiscriminator, self).__init__()
         self.network = nn.Sequential(cklayer_no_bn(inchannels + targetchannels, 64),
                                      cklayer(64, 128),
                                      cklayer(128, 256),

@@ -3,6 +3,7 @@ from skimage.transform import resize
 import random
 import collections.abc as cabc
 import numpy as np
+import cv2
 
 
 def randRescaleAndTranspose(scale, *originalArray):
@@ -10,19 +11,21 @@ def randRescaleAndTranspose(scale, *originalArray):
         shortLen = scale[random.randint(0, len(scale) - 1)]
     else:
         shortLen = scale
+    scaledImgs = []
     for img in originalArray:
         if isinstance(img, str):
-            img = imgio.imread(img)
+            img = cv2.imread(img)
         # multi-scale and transpose
-        scaledImgs = []
         shape = img.shape
-        if shape[1] > shape[2]:
-            shape[1] *= shortLen / shape[2]
-            shape[2] = shortLen
+        reshape = [0, 0]
+        if shape[0] > shape[1]:
+            reshape[0] = shape[0] * shortLen / shape[1]
+            reshape[1] = shortLen
         else:
-            shape[2] *= shortLen / shape[1]
-            shape[1] = shortLen
-        scaledImg = resize(img, shape).transpose((2, 0, 1))
+            reshape[1] = shape[1] * shortLen / shape[0]
+            reshape[0] = shortLen
+        scaledImg = cv2.resize(img, (int(reshape[0]), int(reshape[1]))).transpose((2, 0, 1))
+        scaledImg=scaledImg.astype(np.float64)
         scaledImgs.append(scaledImg)
     return scaledImgs
 
@@ -42,11 +45,13 @@ def randCrop(crop, *images):
 
 def randHFlip(*images):
     flip = random.randint(0, 1)
-    result = list(images)
-    for img in result:
-        if flip > 0:
-            img = np.flip(img, 2)
-    return result
+    if flip > 0:
+        result = []
+        for img in images:
+            fliped = np.flip(img, 2)
+            result.append(fliped)
+        return result
+    return images
 
 
 def rgbAlter(image):
