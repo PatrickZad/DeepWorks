@@ -4,15 +4,17 @@ from collections import OrderedDict
 
 
 class Pix2Pix:
-    def __init__(self, generator, discriminator):
+    def __init__(self, generator, discriminator,cgan=True):
         self.generator = generator
         self.discriminator = discriminator
+        self.cgan=cgan
 
-    def trainModel(self, dataloader, l1_loss=None):
+    def trainGanModel(self, dataloader, l1=100):
         self.generator.train()
         self.discriminator.train()
         d_optim = torch.optim.Adam(self.discriminator.parameters(), lr=0.0002, betas=(0.5, 0.999))
         g_optim = torch.optim.Adam(self.generator.parameters, lr=0.0002, betas=(0.5, 0.999))
+        ganloss = nn.BCELoss()
         for epoch in range(500):
             for step, (sketch, target) in enumerate(dataloader):
                 if torch.cuda.is_available():
@@ -22,18 +24,21 @@ class Pix2Pix:
                 g_optim.zero_grad()
                 batchsize = sketch.shape[0]
                 generate = self.generator(sketch)
-                discriminate_real = self.discriminator(sketch, target)
-                discriminate_genera = self.discriminator(sketch, generate)
+                if self.cgan:
+                    discriminate_real = self.discriminator(torch.cat((sketch, target),0))
+                    discriminate_genera = self.discriminator(torch.cat((sketch, generate),0))
+                else:
+                    discriminate_real = self.discriminator(target)
+                    discriminate_genera = self.discriminator(generate)
                 # optimize discriminator
-                d_loss = 0.5 * (cGAN_loss(discriminate_real, torch.ones(batchsize))
-                                + cGAN_loss(discriminate_genera, torch.zeros(batchsize)))
+                d_loss = 0.5 * (ganloss(discriminate_real, torch.ones(batchsize))
+                                + ganloss(discriminate_genera, torch.zeros(batchsize)))
                 d_loss.backward()
                 d_optim.step()
                 # optimize generator
                 discriminate_genera = self.discriminator(sketch, generate)
-                g_loss = cGAN_loss(discriminate_genera, torch.ones(batchsize))
-                if l1_loss is not None:
-                    g_loss += L1_loss(target, generate, l1_loss)
+                g_loss = ganloss(discriminate_genera, torch.ones(batchsize))
+                g_loss += l1*L1_loss(target, generate, l1_loss)
                 g_loss.backward()
                 g_optim.step()
 
@@ -43,11 +48,7 @@ class Pix2Pix:
         return self.generator(sketch)
 
 
-def cGAN_loss(sketch, target):
-    return nn.BCELoss(sketch, target)
-
-
-def L1_loss(target, generate, lam):
+def L1_loss(target, generate):
     batchsize = target.shape[0]
     abs = torch.abs(target - generate)
     return torch.sum(abs) / batchsize
@@ -187,9 +188,8 @@ class PatchDiscriminator70(nn.Module):
         self.network.add_module('out', nn.Sequential(nn.Conv2d(512, 1, kernel_size=4, stride=1, padding=1),
                                                      nn.Sigmoid()))
 
-    def forward(self, sketch, target):
-        cat = nn.cat((sketch, target), 0)
-        conv = self.network(cat)
+    def forward(self, input):
+        conv = self.network(input)
         return torch.mean(conv)
 
 
@@ -204,9 +204,8 @@ class PixelDiscriminator(nn.Module):
         self.conv3 = nn.Sequential(nn.Conv2d(128, 1, kernel_size=1, stride=1),
                                    nn.Sigmoid())
 
-    def forward(self, sketch, target):
-        cat = torch.cat((sketch, target), 0)
-        out1 = self.conv1(cat)
+    def forward(self, input):
+        out1 = self.conv1(input)
         out2 = self.conv2(out1)
         out3 = self.conv3(out2)
         return torch.mean(out3)
@@ -215,8 +214,15 @@ class PixelDiscriminator(nn.Module):
 class ImageDiscriminator(nn.Module):
     def __init__(self, inchannels=3, targetchannels=3):
         super.__init__(ImageDiscriminator, self)
-        # TODO
+        self.network = nn.Sequential(cklayer_no_bn(inchannels + targetchannels, 64),
+                                     cklayer(64, 128),
+                                     cklayer(128, 256),
+                                     cklayer(256, 512),
+                                     cklayer(512, 512),
+                                     cklayer(512, 512, stride=1))
+        self.network.add_module('out', nn.Sequential(nn.Conv2d(512, 1, kernel_size=4, stride=1, padding=1),
+                                                     nn.Sigmoid()))
 
     def forward(self, sketch, target):
-        # TODO
-        pass
+        conv = self.network(input)
+        return torch.mean(conv)
