@@ -18,6 +18,10 @@ class Pix2Pix:
         ganloss = nn.BCELoss()
         for epoch in range(500):
             for step, (sketch, target) in enumerate(dataloader):
+                # sketch = torch.from_numpy(sketch)
+                # target = torch.from_numpy(target)
+                sketch = sketch.float()
+                target = target.float()
                 if torch.cuda.is_available():
                     sketch = sketch.cuda()
                     target = target.cuda()
@@ -48,9 +52,9 @@ class Pix2Pix:
         self.discriminator.eval()
         return self.generator(sketch)
 
-    def store(self, dir,name):
-        torch.save(self.generator.stat_dict(), os.path.join(dir, name+'_generator.pt'))
-        torch.save(self.discriminator.stat_dict(), os.path.join(dir, name+'_discriminator.pt'))
+    def store(self, dir, name):
+        torch.save(self.generator.stat_dict(), os.path.join(dir, name + '_generator.pt'))
+        torch.save(self.discriminator.stat_dict(), os.path.join(dir, name + '_discriminator.pt'))
 
 
 def L1_loss(target, generate):
@@ -93,9 +97,13 @@ class UnetGenerator(nn.Module):
 def cklayer(inChannel, outChannel, kernel=4, stride=2, pad=1):
     conv = nn.Conv2d(inChannel, outChannel, kernel_size=kernel, padding=pad, stride=stride)
     nn.init.normal_(conv.weight.data, mean=0, std=0.02)
+    # conv.weight.data = conv.weight.data.double()
+    # conv.bias.data = conv.bias.data.double()
     bn = nn.BatchNorm2d(outChannel)
     nn.init.normal_(bn.weight.data, mean=0, std=0.02)
+    # bn.weight.data = bn.weight.data.double()
     nn.init.constant_(bn.bias.data, 0)
+    # bn.bias.data = bn.bias.data.double()
     return nn.Sequential(conv,
                          bn,
                          nn.LeakyReLU(0.2))
@@ -104,6 +112,8 @@ def cklayer(inChannel, outChannel, kernel=4, stride=2, pad=1):
 def cklayer_no_bn(inChannel, outChannel, kernel=4, stride=2, pad=1):
     conv = nn.Conv2d(inChannel, outChannel, kernel_size=kernel, padding=pad, stride=stride)
     nn.init.normal_(conv.weight.data, mean=0, std=0.02)
+    # conv.weight.data = conv.weight.data.double()
+    # conv.bias.data = conv.bias.data.double()
     return nn.Sequential(conv,
                          nn.LeakyReLU(0.2))
 
@@ -111,9 +121,13 @@ def cklayer_no_bn(inChannel, outChannel, kernel=4, stride=2, pad=1):
 def transpose_cklayer(inChannel, outChannel, kernel=4, stride=2, pad=1):
     conv = nn.ConvTranspose2d(inChannel, outChannel, kernel_size=kernel, padding=pad, stride=stride)
     nn.init.normal(conv.weight.data, mean=0, std=0.02)
+    # conv.weight.data = conv.weight.data.double()
+    # conv.bias.data = conv.bias.data.double()
     bn = nn.BatchNorm2d(outChannel)
     nn.init.normal(bn.weight.data, mean=0, std=0.02)
+    # bn.weight.data = bn.weight.data.double()
     nn.init.constant(bn.bias.data, 0)
+    # bn.bias.data = bn.bias.data.double()
     return nn.Sequential(
         conv,
         bn,
@@ -123,9 +137,13 @@ def transpose_cklayer(inChannel, outChannel, kernel=4, stride=2, pad=1):
 def cdklayer(inChannel, outChannel, kernel=4, stride=2, pad=1):
     conv = nn.Conv2d(inChannel, outChannel, kernel_size=kernel, padding=pad, stride=stride)
     nn.init.normal(conv.weight.data, mean=0, std=0.02)
+    # conv.weight.data = conv.weight.data.double()
+    # conv.bias.data = conv.bias.data.double()
     bn = nn.BatchNorm2d(outChannel)
     nn.init.normal(bn.weight.data, mean=0, std=0.02)
+    # bn.weight.data = bn.weight.data.double()
     nn.init.constant(bn.bias.data, 0)
+    # bn.bias.data = bn.bias.data.double()
     return nn.Sequential(
         conv,
         bn,
@@ -136,9 +154,13 @@ def cdklayer(inChannel, outChannel, kernel=4, stride=2, pad=1):
 def transpose_cdklayer(inChannel, outChannel, kernel=4, stride=2, pad=1):
     conv = nn.ConvTranspose2d(inChannel, outChannel, kernel_size=kernel, padding=pad, stride=stride)
     nn.init.normal_(conv.weight.data, mean=0, std=0.02)
+    # conv.weight.data = conv.weight.data.double()
+    # conv.bias.data = conv.bias.data.double()
     bn = nn.BatchNorm2d(outChannel)
     nn.init.normal_(bn.weight.data, mean=0, std=0.02)
+    # bn.weight.data = bn.weight.data.double()
     nn.init.constant_(bn.bias.data, 0)
+    # bn.bias.data = bn.bias.data.double()
     return nn.Sequential(
         conv,
         bn,

@@ -207,7 +207,7 @@ class GenerativeBasic(Dataset):
         results = aug.randRescaleAndTranspose(286, real, label)
         results = aug.randCrop(256, *results)
         results = aug.randHFlip(*results)
-        return results[0],results[1]
+        return results[0].copy(), results[1].copy()
 
 
 class FacadesTrain(GenerativeBasic):
