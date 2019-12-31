@@ -2,7 +2,7 @@ import torch
 import torch.nn as nn
 from collections import OrderedDict
 import os
-
+import logging
 
 class Pix2Pix:
     def __init__(self, generator, discriminator, cgan=True):
@@ -10,7 +10,7 @@ class Pix2Pix:
         self.discriminator = discriminator
         self.cgan = cgan
 
-    def trainGanModel(self, dataloader, l1=100):
+    def trainGanModel(self, dataloader, l1=100,log=None):
         self.generator.train()
         self.discriminator.train()
         d_optim = torch.optim.Adam(self.discriminator.parameters(), lr=0.0002, betas=(0.5, 0.999))
@@ -30,8 +30,8 @@ class Pix2Pix:
                 batchsize = sketch.shape[0]
                 generate = self.generator(sketch)
                 if self.cgan:
-                    discriminate_real = self.discriminator(torch.cat((sketch, target), 0))
-                    discriminate_genera = self.discriminator(torch.cat((sketch, generate), 0))
+                    discriminate_real = self.discriminator(torch.cat((sketch, target), 3))
+                    discriminate_genera = self.discriminator(torch.cat((sketch, generate), 3))
                 else:
                     discriminate_real = self.discriminator(target)
                     discriminate_genera = self.discriminator(generate)
@@ -41,7 +41,7 @@ class Pix2Pix:
                 d_loss.backward()
                 d_optim.step()
                 # optimize generator
-                discriminate_genera = self.discriminator(sketch, generate)
+                discriminate_genera = self.discriminator(torch.cat((sketch, generate), 3))
                 g_loss = ganloss(discriminate_genera, torch.ones(batchsize))
                 g_loss += l1 * L1_loss(target, generate)
                 g_loss.backward()
@@ -60,7 +60,8 @@ class Pix2Pix:
 def L1_loss(target, generate):
     batchsize = target.shape[0]
     abs = torch.abs(target - generate)
-    return torch.sum(abs) / batchsize
+    loss=torch.sum(abs) / batchsize
+    return loss
 
 
 class BasicGenerator(nn.Module):
@@ -87,10 +88,14 @@ class UnetGenerator(nn.Module):
         for enc_layer in self.basic_encoder.children():
             nextsketch = enc_layer(nextsketch)
             encoderout.append(nextsketch)
-        dec_output = torch.rand((0, 1, 1))
-        for declayer, encout in self.unet_decoder.children(), encoderout.reverse():
-            incat = torch.cat((encout, dec_output), 0)
+        batchsize = sketch.shape[0]
+        dec_output = torch.rand((batchsize, 0, 1, 1))
+        outindex = len(encoderout) - 1
+        for declayer in self.unet_decoder.children():
+            encout = encoderout[outindex]
+            incat = torch.cat((encout, dec_output), 1)
             dec_output = declayer(incat)
+            outindex -= 1
         return dec_output
 
 
@@ -176,7 +181,8 @@ def basic_encoder(inchannels=3):
                      ('enc4', cklayer(256, 512)),
                      ('enc5', cklayer(512, 512)),
                      ('enc6', cklayer(512, 512)),
-                     ('enc7', cklayer(512, 512))]))
+                     ('enc7', cklayer(512, 512)),
+                     ('enc8', cklayer(512, 512))]))
 
 
 def basic_decoder(outchannels=3):
@@ -206,9 +212,9 @@ def unet_decoder(outChannels=3):
 
 
 class PatchDiscriminator70(nn.Module):
-    def __init__(self, inchannels=3, targetchannels=3):
+    def __init__(self, inchannels=3):
         super(PatchDiscriminator70, self).__init__()
-        self.network = nn.Sequential(cklayer_no_bn(inchannels + targetchannels, 64),
+        self.network = nn.Sequential(cklayer_no_bn(inchannels , 64),
                                      cklayer(64, 128),
                                      cklayer(128, 256),
                                      cklayer(256, 512, stride=1))
@@ -217,13 +223,15 @@ class PatchDiscriminator70(nn.Module):
 
     def forward(self, input):
         conv = self.network(input)
-        return torch.mean(conv)
+        batchsize = conv.shape[0]
+        out = torch.tensor([torch.mean(conv[i, :, :]) for i in range(batchsize)], requires_grad=True)
+        return out.squeeze()
 
 
 class PixelDiscriminator(nn.Module):
-    def __init__(self, inchannels=3, targetchannels=3):
+    def __init__(self, inchannels=3):
         super(PixelDiscriminator, self).__init__()
-        self.conv1 = nn.Sequential(nn.Conv2d(inchannels + targetchannels, 64, kernel_size=1, stride=1),
+        self.conv1 = nn.Sequential(nn.Conv2d(inchannels , 64, kernel_size=1, stride=1),
                                    nn.LeakyReLU(0.2))
         self.conv2 = nn.Sequential(nn.Conv2d(64, 128, kernel_size=1, stride=1),
                                    nn.BatchNorm2d(128),
@@ -239,9 +247,9 @@ class PixelDiscriminator(nn.Module):
 
 
 class ImageDiscriminator(nn.Module):
-    def __init__(self, inchannels=3, targetchannels=3):
+    def __init__(self, inchannels=3):
         super(ImageDiscriminator, self).__init__()
-        self.network = nn.Sequential(cklayer_no_bn(inchannels + targetchannels, 64),
+        self.network = nn.Sequential(cklayer_no_bn(inchannels , 64),
                                      cklayer(64, 128),
                                      cklayer(128, 256),
                                      cklayer(256, 512),

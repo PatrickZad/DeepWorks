@@ -18,28 +18,29 @@ loss
 def loss_ex():
     store_dir = os.path.join(storebase, 'loss')
     # gan
-    ganDiscriminator = pix2.PatchDiscriminator70(inchannels=0)
+    logfile=r'./pix2pix_loss_gan.log'
+    ganDiscriminator = pix2.PatchDiscriminator70()
     generator = pix2.UnetGenerator()
     model = pix2.Pix2Pix(generator, ganDiscriminator, cgan=False)
-    model.trainGanModel(dataloader1, l1=0)
+    model.trainGanModel(dataloader10, l1=0)
     model.store(store_dir, 'gan_only')
     # cgan
     cganDiscriminator = pix2.PatchDiscriminator70()
     generator = pix2.UnetGenerator()
     model = pix2.Pix2Pix(generator, ganDiscriminator)
-    model.trainGanModel(dataloader1, l1=0)
+    model.trainGanModel(dataloader10, l1=0)
     model.store(store_dir, 'cgan_only')
     # l1 gan
     ganDiscriminator = pix2.PatchDiscriminator70(inchannels=0)
     generator = pix2.UnetGenerator()
     model = pix2.Pix2Pix(generator, ganDiscriminator, cgan=False)
-    model.trainGanModel(dataloader1)
+    model.trainGanModel(dataloader10)
     model.store(store_dir, 'gan_l1')
     # l1 cgan
     cganDiscriminator = pix2.PatchDiscriminator70()
     generator = pix2.UnetGenerator()
     model = pix2.Pix2Pix(generator, ganDiscriminator)
-    model.trainGanModel(dataloader1)
+    model.trainGanModel(dataloader10)
     model.store(store_dir, 'cgan_l1')
 '''
 generator
