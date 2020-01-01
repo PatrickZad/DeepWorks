@@ -4,13 +4,17 @@ from collections import OrderedDict
 import os
 import logging
 
+
 class Pix2Pix:
     def __init__(self, generator, discriminator, cgan=True):
         self.generator = generator
         self.discriminator = discriminator
         self.cgan = cgan
 
-    def trainGanModel(self, dataloader, l1=100,log=None):
+    def trainGanModel(self, dataloader, logfile, l1=100):
+        logging.basicConfig(filename=logfile, level=logging.INFO,
+                            format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
+        logger = logging.getLogger(__name__)
         self.generator.train()
         self.discriminator.train()
         d_optim = torch.optim.Adam(self.discriminator.parameters(), lr=0.0002, betas=(0.5, 0.999))
@@ -38,12 +42,14 @@ class Pix2Pix:
                 # optimize discriminator
                 d_loss = 0.5 * (ganloss(discriminate_real, torch.ones(batchsize))
                                 + ganloss(discriminate_genera, torch.zeros(batchsize)))
+                logger.info('de_loss' + str(d_loss.data))
                 d_loss.backward()
                 d_optim.step()
                 # optimize generator
                 discriminate_genera = self.discriminator(torch.cat((sketch, generate), 3))
                 g_loss = ganloss(discriminate_genera, torch.ones(batchsize))
                 g_loss += l1 * L1_loss(target, generate)
+                logger.info('g_loss:' + str(g_loss.data))
                 g_loss.backward()
                 g_optim.step()
 
@@ -60,7 +66,7 @@ class Pix2Pix:
 def L1_loss(target, generate):
     batchsize = target.shape[0]
     abs = torch.abs(target - generate)
-    loss=torch.sum(abs) / batchsize
+    loss = torch.sum(abs) / batchsize
     return loss
 
 
@@ -214,7 +220,7 @@ def unet_decoder(outChannels=3):
 class PatchDiscriminator70(nn.Module):
     def __init__(self, inchannels=3):
         super(PatchDiscriminator70, self).__init__()
-        self.network = nn.Sequential(cklayer_no_bn(inchannels , 64),
+        self.network = nn.Sequential(cklayer_no_bn(inchannels, 64),
                                      cklayer(64, 128),
                                      cklayer(128, 256),
                                      cklayer(256, 512, stride=1))
@@ -231,7 +237,7 @@ class PatchDiscriminator70(nn.Module):
 class PixelDiscriminator(nn.Module):
     def __init__(self, inchannels=3):
         super(PixelDiscriminator, self).__init__()
-        self.conv1 = nn.Sequential(nn.Conv2d(inchannels , 64, kernel_size=1, stride=1),
+        self.conv1 = nn.Sequential(nn.Conv2d(inchannels, 64, kernel_size=1, stride=1),
                                    nn.LeakyReLU(0.2))
         self.conv2 = nn.Sequential(nn.Conv2d(64, 128, kernel_size=1, stride=1),
                                    nn.BatchNorm2d(128),
@@ -249,7 +255,7 @@ class PixelDiscriminator(nn.Module):
 class ImageDiscriminator(nn.Module):
     def __init__(self, inchannels=3):
         super(ImageDiscriminator, self).__init__()
-        self.network = nn.Sequential(cklayer_no_bn(inchannels , 64),
+        self.network = nn.Sequential(cklayer_no_bn(inchannels, 64),
                                      cklayer(64, 128),
                                      cklayer(128, 256),
                                      cklayer(256, 512),

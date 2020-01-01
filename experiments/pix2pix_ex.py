@@ -15,14 +15,16 @@ valloader = DataLoader(dataset=val, batch_size=len(val))
 '''
 loss
 '''
+
+
 def loss_ex():
     store_dir = os.path.join(storebase, 'loss')
     # gan
-    logfile=r'./pix2pix_loss_gan.log'
+    logfile = r'./pix2pix_loss_gan.log'
     ganDiscriminator = pix2.PatchDiscriminator70()
     generator = pix2.UnetGenerator()
     model = pix2.Pix2Pix(generator, ganDiscriminator, cgan=False)
-    model.trainGanModel(dataloader10, l1=0)
+    model.trainGanModel(dataloader10, logfile, l1=0)
     model.store(store_dir, 'gan_only')
     # cgan
     cganDiscriminator = pix2.PatchDiscriminator70()
@@ -42,9 +44,13 @@ def loss_ex():
     model = pix2.Pix2Pix(generator, ganDiscriminator)
     model.trainGanModel(dataloader10)
     model.store(store_dir, 'cgan_l1')
+
+
 '''
 generator
 '''
+
+
 def generator_ex():
     store_dir = os.path.join(storebase, 'generator')
     # ec
@@ -59,9 +65,13 @@ def generator_ex():
     model = pix2.Pix2Pix(ungenerator, cganDiscriminator)
     model.trainGanModel(dataloader10)
     model.store(store_dir, 'un')
+
+
 '''
 discriminator
 '''
+
+
 def discriminator_ex():
     store_dir = os.path.join(storebase, 'discriminator')
     # pixel
@@ -80,7 +90,9 @@ def discriminator_ex():
     model = pix2.Pix2Pix(generator, imageDiscriminator)
     model.trainGanModel(dataloader1)
     model.store(store_dir, 'image')
-if __name__=='__main__':
+
+
+if __name__ == '__main__':
     loss_ex()
     generator_ex()
     discriminator_ex()
