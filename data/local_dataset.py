@@ -21,8 +21,8 @@ if re.match(r'.*inux.*', sys.platform):
 else:
     imagenetdir = r''
     cifar10dir = r''
-    facadeDir = r''
-    cityscapesDir = r''
+    facadeDir = r'F:\Datasets\facades'
+    cityscapesDir = r'F:\Datasets\cityscapes'
     edges2shoesDir = r''
 imagenetSubpath = {'img': {'train': 'img_train', 'test': 'img_test', 'train_t3': 'img_train_t3', 'val': 'img_val'}, \
                    'devkit': {'t3': 'ILSVRC2012_devkit_t3', 't12': 'ILSVRC2012_devkit_t12'},

@@ -27,21 +27,24 @@ def loss_ex():
     model.trainGanModel(dataloader10, logfile, l1=0)
     model.store(store_dir, 'gan_only')
     # cgan
+    logfile = r'./pix2pix_loss_cgan.log'
     cganDiscriminator = pix2.PatchDiscriminator70()
     generator = pix2.UnetGenerator()
-    model = pix2.Pix2Pix(generator, ganDiscriminator)
-    model.trainGanModel(dataloader10, l1=0)
+    model = pix2.Pix2Pix(generator, cganDiscriminator)
+    model.trainGanModel(dataloader10, logfile, l1=0)
     model.store(store_dir, 'cgan_only')
     # l1 gan
+    logfile = r'./pix2pix_loss_l1gan.log'
     ganDiscriminator = pix2.PatchDiscriminator70(inchannels=0)
     generator = pix2.UnetGenerator()
     model = pix2.Pix2Pix(generator, ganDiscriminator, cgan=False)
-    model.trainGanModel(dataloader10)
+    model.trainGanModel(dataloader10, logfile)
     model.store(store_dir, 'gan_l1')
     # l1 cgan
+    logfile = r'./pix2pix_loss_l1cgan.log'
     cganDiscriminator = pix2.PatchDiscriminator70()
     generator = pix2.UnetGenerator()
-    model = pix2.Pix2Pix(generator, ganDiscriminator)
+    model = pix2.Pix2Pix(generator, cganDiscriminator)
     model.trainGanModel(dataloader10)
     model.store(store_dir, 'cgan_l1')
 
@@ -94,5 +97,5 @@ def discriminator_ex():
 
 if __name__ == '__main__':
     loss_ex()
-    generator_ex()
-    discriminator_ex()
+    # generator_ex()
+    # discriminator_ex()

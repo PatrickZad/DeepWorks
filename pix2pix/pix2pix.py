@@ -20,15 +20,16 @@ class Pix2Pix:
         d_optim = torch.optim.Adam(self.discriminator.parameters(), lr=0.0002, betas=(0.5, 0.999))
         g_optim = torch.optim.Adam(self.generator.parameters(), lr=0.0002, betas=(0.5, 0.999))
         ganloss = nn.BCELoss()
-        for epoch in range(500):
+        for epoch in range(2000):
             for step, (sketch, target) in enumerate(dataloader):
                 # sketch = torch.from_numpy(sketch)
                 # target = torch.from_numpy(target)
                 sketch = sketch.float()
                 target = target.float()
+                '''
                 if torch.cuda.is_available():
                     sketch = sketch.cuda()
-                    target = target.cuda()
+                    target = target.cuda()'''
                 d_optim.zero_grad()
                 g_optim.zero_grad()
                 batchsize = sketch.shape[0]
@@ -42,14 +43,14 @@ class Pix2Pix:
                 # optimize discriminator
                 d_loss = 0.5 * (ganloss(discriminate_real, torch.ones(batchsize))
                                 + ganloss(discriminate_genera, torch.zeros(batchsize)))
-                logger.info('de_loss' + str(d_loss.data))
+                logger.info(str(epoch)+'-'+str(step)+'-d_loss:' + str(d_loss.data))
                 d_loss.backward()
                 d_optim.step()
                 # optimize generator
                 discriminate_genera = self.discriminator(torch.cat((sketch, generate), 3))
                 g_loss = ganloss(discriminate_genera, torch.ones(batchsize))
                 g_loss += l1 * L1_loss(target, generate)
-                logger.info('g_loss:' + str(g_loss.data))
+                logger.info(str(epoch)+'-'+str(step)+'-g_loss:' + str(g_loss.data))
                 g_loss.backward()
                 g_optim.step()
 
