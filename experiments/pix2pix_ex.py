@@ -1,7 +1,9 @@
-import pix2pix.pix2pix as pix2
-import data.local_dataset as datas
+from model.pix2pix import pix2pix as pix2
+import data.local_daterraset as datas
 from torch.utils.data import DataLoader
 import re, sys, os
+
+
 
 if re.match(r'.*inux.*', sys.platform):
     storebase = r'/home/patrick/PatrickWorkspace/DeepWorks/store/pix2pix'

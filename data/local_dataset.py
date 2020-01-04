@@ -11,11 +11,12 @@ from skimage.transform import resize
 import random
 import data.augmentation as aug
 import cv2
+import pickle
 
 if re.match(r'.*inux.*', sys.platform):
     imagenetdir = r'/run/media/patrick/6114f130-f537-4999-b5f6-33fe2afc51db/imagenet12'
     cifar10dir = r'/run/media/patrick/6114f130-f537-4999-b5f6-33fe2afc51db/cifar10'
-    facadeDir = r'/home/patrick/PatrickWorkspace/datasets/facades'
+    facadeDir = r'/home/patrick/PatrickWorkspace/Datasets/facades'
     cityscapesDir = r'/home/patrick/PatrickWorkspace/Datasets/cityscapes'
     edges2shoesDir = r'/home/patrick/PatrickWorkspace/Datasets/edges2shoes'
 else:
@@ -194,26 +195,44 @@ class ImagenetVal(Dataset):
 
 
 class GenerativeBasic(Dataset):
-    def __init__(self):
-        self.dir = None
-        self.files = None
+    def __init__(self, dir=None, binary=None):
+        if dir is not None:
+            files = os.listdir(dir)
+            pairlist = []
+            for file in files:
+                image = cv2.imread(os.path.join(dir, file))
+                image = aug.randRescaleAndTranspose(286, image)
+                # pairlist.append(np.expand_dims(image, 0))
+                pairlist.append(image)
+            self.pairsArray = np.concatenate(pairlist, 0)
+        elif binary is not None:
+            with open(binary, 'rb') as file:
+                self.pairsArray = pickle.load(file)
 
     def __len__(self):
+        if self.pairsArray is not None:
+            return self.pairsArray.shape[0]
         return len(self.files)
 
     def __getitem__(self, item):
-        imagepair = cv2.imread(os.path.join(self.dir, self.files[item]))
+        imagepair = self.pairsArray[item]
         real, label = np.split(imagepair, 2, axis=1)
         results = aug.randRescaleAndTranspose(286, real, label)
         results = aug.randCrop(256, *results)
         results = aug.randHFlip(*results)
         return results[0].copy(), results[1].copy()
 
+    def toBinary(self, file):
+        with open(file, 'wb') as pkl:
+            pickle.dump(self.pairsArray, pkl)
+
 
 class FacadesTrain(GenerativeBasic):
-    def __init__(self):
-        self.dir = os.path.join(facadeDir, 'train')
-        self.files = os.listdir(self.dir)
+    def __init__(self, pkl=None):
+        if pkl is None:
+            super().__init__(os.path.join(facadeDir, 'train'))
+        else:
+            super().__init__(binary=pkl)
 
 
 class FacadesTest(GenerativeBasic):
@@ -229,9 +248,14 @@ class FacadesVal(GenerativeBasic):
 
 
 class CityscapesTrain(GenerativeBasic):
-    def __init__(self):
+    def __init__(self, pkl=None):
+        if pkl is None:
+            super().__init__(os.path.join(cityscapesDir, 'train'))
+        else:
+            super().__init__(binary=pkl)
+    '''def __init__(self):
         self.dir = os.path.join(cityscapesDir, 'train')
-        self.files = os.listdir(self.dir)
+        self.files = os.listdir(self.dir)'''
 
 
 class CityscapesVal(GenerativeBasic):
@@ -250,3 +274,10 @@ class Edges2shoesVal(GenerativeBasic):
     def __init__(self):
         self.dir = os.path.join(edges2shoesDir, 'val')
         self.files = os.listdir(self.dir)
+
+
+if __name__ == '__main__':
+    # facadesTrain = FacadesTrain()
+    # facadesTrain.toBinary(file='./facades_train.pkl')
+    cityscapesTrain=CityscapesTrain()
+    cityscapesTrain.toBinary(file='./cityscapes_train.pkl')

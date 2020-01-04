@@ -3,9 +3,168 @@ import torch.nn as nn
 from collections import OrderedDict
 import os
 import logging
+from model import NNconfig
+
+'''config'''
+#constant
+batch_norm = 0
+inst_norm = 1
+
+
+class Config(NNconfig):
+    def __init__(self, norm=None):
+        self.lr = 2 * 10 ** (-4)
+        self.momentum_beta1 = 0.5
+        self.momentum_beta2 = 0.999
+        self.norm = norm
+        self.optim_coefficient_d = 0.5
+        self.optim_coefficient_g = 1
+        if norm == inst_norm:
+            self.batch_size = 1
+        else:
+            self.batch_size = 10
+        self.cuda = torch.cuda.is_available()
+
+    def optimizer(self, parameters):
+        return torch.optim.Adam(parameters, lr=self.lr, betas=(self.momentum_beta1, self.momentum_beta2))
+
+    def main_loss(self):
+        return nn.BCELoss()
+
+
+'''build functions'''
+
+
+def norm_layer(features, norm=batch_norm):
+    if norm == batch_norm:
+        layer = nn.BatchNorm2d(features, track_running_stats=False)
+    elif norm == inst_norm:
+        layer = nn.InstanceNorm2d(features, affine=True)
+    return layer
+
+
+def conv_layer(in_channel, out_channel, kernel, stride, pad):
+    conv = nn.Conv2d(
+        in_channel, out_channel, kernel_size=kernel, padding=pad, stride=stride)
+    nn.init.normal_(conv.weight.data, mean=0, std=0.02)
+    return conv
+
+
+def conv_transpose_layer(in_channel, out_channel, kernel, stride, pad):
+    conv = nn.ConvTranspose2d(
+        in_channel, out_channel, kernel_size=kernel, padding=pad, stride=stride)
+    nn.init.normal_(conv.weight.data, mean=0, std=0.02)
+    return conv
+
+
+def ck_layer(in_channel, out_channel, norm, kernel=4, stride=2, pad=1):
+    if norm is None:
+        layer = nn.Sequential(
+            conv_layer(in_channel, out_channel, kernel, stride, pad),
+            nn.LeakyReLU(0.2))
+    else:
+        layer = nn.Sequential(
+            conv_layer(in_channel, out_channel, kernel, stride, pad),
+            norm_layer(out_channel, norm),
+            nn.LeakyReLU(0.2))
+    return layer
+
+
+def transpose_ck_layer(in_channel, out_channel, norm, kernel=4, stride=2, pad=1):
+    if norm is None:
+        layer = nn.Sequential(
+            conv_transpose_layer(in_channel, out_channel, kernel, stride, pad),
+            nn.ReLU())
+    else:
+        layer = nn.Sequential(
+            conv_transpose_layer(in_channel, out_channel, kernel, stride, pad),
+            norm_layer(out_channel, norm),
+            nn.ReLU())
+    return layer
+
+
+def cdk_layer(in_channel, out_channel, norm, kernel=4, stride=2, pad=1):
+    if norm is None:
+        layer = nn.Sequential(
+            conv_layer(in_channel, out_channel, kernel, stride, pad),
+            nn.Dropout2d(0.5),
+            nn.LeakyReLU(0.2))
+    else:
+        layer = nn.Sequential(
+            conv_layer(in_channel, out_channel, kernel, stride, pad),
+            norm_layer(out_channel, norm),
+            nn.Dropout2d(0.5),
+            nn.LeakyReLU(0.2))
+    return layer
+
+
+def transpose_cdk_layer(in_channel, out_channel, norm, kernel=4, stride=2, pad=1):
+    if norm is None:
+        layer = nn.Sequential(
+            conv_transpose_layer(in_channel, out_channel, kernel, stride, pad),
+            nn.Dropout2d(0.5),
+            nn.ReLU())
+    else:
+        layer = nn.Sequential(
+            conv_transpose_layer(in_channel, out_channel, kernel, stride, pad),
+            norm_layer(out_channel, norm),
+            nn.Dropout2d(0.5),
+            nn.ReLU())
+    return layer
+
+
+def basic_encoder(norm, in_channels=3, ):
+    return nn.Sequential(
+        OrderedDict([('enc1', ck_layer(in_channels, 64, norm=None)),
+                     ('enc2', ck_layer(64, 128, norm)),
+                     ('enc3', ck_layer(128, 256, norm)),
+                     ('enc4', ck_layer(256, 512, norm)),
+                     ('enc5', ck_layer(512, 512, norm)),
+                     ('enc6', ck_layer(512, 512, norm)),
+                     ('enc7', ck_layer(512, 512, norm)),
+                     ('enc8', ck_layer(512, 512, norm))]))
+
+
+def basic_decoder(norm, out_channels=3):
+    return nn.Sequential(transpose_cdk_layer(512, 512, norm),
+                         transpose_cdk_layer(512, 512, norm),
+                         transpose_cdk_layer(512, 512, norm),
+                         transpose_ck_layer(512, 512, norm),
+                         transpose_ck_layer(512, 256, norm),
+                         transpose_ck_layer(256, 128, norm),
+                         transpose_ck_layer(128, 64, norm),
+                         nn.Sequential(nn.ConvTranspose2d(64, out_channels, kernel_size=4, stride=2, padding=1),
+                                       nn.Tanh()))
+
+
+def unet_decoder(norm, out_channels=3):
+    return nn.Sequential(
+        OrderedDict([('dec-7', transpose_cdk_layer(512, 512, norm)),
+                     ('dec-6', transpose_cdk_layer(1024, 512, norm)),
+                     ('dec-5', transpose_cdk_layer(1024, 512, norm)),
+                     ('dec-4', transpose_cdk_layer(1024, 512, norm)),
+                     ('dec-3', transpose_cdk_layer(1024, 256, norm)),
+                     ('dec-2', transpose_cdk_layer(512, 128, norm)),
+                     ('dec-1', transpose_cdk_layer(256, 64, norm)),
+                     ('decout',
+                      nn.Sequential(nn.ConvTranspose2d(128, out_channels, kernel_size=4, stride=2, padding=1),
+                                    nn.Tanh()))]))
+
+
+'''other functions'''
+
+
+def L1_loss(target, generate):
+    batchsize = target.shape[0]
+    abs = torch.abs(target - generate)
+    loss = torch.sum(abs) / batchsize
+    return loss
 
 
 class Pix2Pix:
+    def __init__(self, config):
+        pass
+
     def __init__(self, generator, discriminator, cgan=True):
         self.generator = generator
         self.discriminator = discriminator
@@ -63,13 +222,6 @@ class Pix2Pix:
         torch.save(self.discriminator.stat_dict(), os.path.join(dir, name + '_discriminator.pt'))
 
 
-def L1_loss(target, generate):
-    batchsize = target.shape[0]
-    abs = torch.abs(target - generate)
-    loss = torch.sum(abs) / batchsize
-    return loss
-
-
 class BasicGenerator(nn.Module):
     def __init__(self, inchannels=3, outchannels=3):
         super(BasicGenerator, self).__init__()
@@ -103,118 +255,6 @@ class UnetGenerator(nn.Module):
             dec_output = declayer(incat)
             outindex -= 1
         return dec_output
-
-
-def cklayer(inChannel, outChannel, kernel=4, stride=2, pad=1):
-    conv = nn.Conv2d(inChannel, outChannel, kernel_size=kernel, padding=pad, stride=stride)
-    nn.init.normal_(conv.weight.data, mean=0, std=0.02)
-    # conv.weight.data = conv.weight.data.double()
-    # conv.bias.data = conv.bias.data.double()
-    bn = nn.BatchNorm2d(outChannel)
-    nn.init.normal_(bn.weight.data, mean=0, std=0.02)
-    # bn.weight.data = bn.weight.data.double()
-    nn.init.constant_(bn.bias.data, 0)
-    # bn.bias.data = bn.bias.data.double()
-    return nn.Sequential(conv,
-                         bn,
-                         nn.LeakyReLU(0.2))
-
-
-def cklayer_no_bn(inChannel, outChannel, kernel=4, stride=2, pad=1):
-    conv = nn.Conv2d(inChannel, outChannel, kernel_size=kernel, padding=pad, stride=stride)
-    nn.init.normal_(conv.weight.data, mean=0, std=0.02)
-    # conv.weight.data = conv.weight.data.double()
-    # conv.bias.data = conv.bias.data.double()
-    return nn.Sequential(conv,
-                         nn.LeakyReLU(0.2))
-
-
-def transpose_cklayer(inChannel, outChannel, kernel=4, stride=2, pad=1):
-    conv = nn.ConvTranspose2d(inChannel, outChannel, kernel_size=kernel, padding=pad, stride=stride)
-    nn.init.normal(conv.weight.data, mean=0, std=0.02)
-    # conv.weight.data = conv.weight.data.double()
-    # conv.bias.data = conv.bias.data.double()
-    bn = nn.BatchNorm2d(outChannel)
-    nn.init.normal(bn.weight.data, mean=0, std=0.02)
-    # bn.weight.data = bn.weight.data.double()
-    nn.init.constant(bn.bias.data, 0)
-    # bn.bias.data = bn.bias.data.double()
-    return nn.Sequential(
-        conv,
-        bn,
-        nn.ReLU())
-
-
-def cdklayer(inChannel, outChannel, kernel=4, stride=2, pad=1):
-    conv = nn.Conv2d(inChannel, outChannel, kernel_size=kernel, padding=pad, stride=stride)
-    nn.init.normal(conv.weight.data, mean=0, std=0.02)
-    # conv.weight.data = conv.weight.data.double()
-    # conv.bias.data = conv.bias.data.double()
-    bn = nn.BatchNorm2d(outChannel)
-    nn.init.normal(bn.weight.data, mean=0, std=0.02)
-    # bn.weight.data = bn.weight.data.double()
-    nn.init.constant(bn.bias.data, 0)
-    # bn.bias.data = bn.bias.data.double()
-    return nn.Sequential(
-        conv,
-        bn,
-        nn.Dropout2d(0.5),
-        nn.LeakyReLU(0.2))
-
-
-def transpose_cdklayer(inChannel, outChannel, kernel=4, stride=2, pad=1):
-    conv = nn.ConvTranspose2d(inChannel, outChannel, kernel_size=kernel, padding=pad, stride=stride)
-    nn.init.normal_(conv.weight.data, mean=0, std=0.02)
-    # conv.weight.data = conv.weight.data.double()
-    # conv.bias.data = conv.bias.data.double()
-    bn = nn.BatchNorm2d(outChannel)
-    nn.init.normal_(bn.weight.data, mean=0, std=0.02)
-    # bn.weight.data = bn.weight.data.double()
-    nn.init.constant_(bn.bias.data, 0)
-    # bn.bias.data = bn.bias.data.double()
-    return nn.Sequential(
-        conv,
-        bn,
-        nn.Dropout2d(0.5),
-        nn.ReLU())
-
-
-def basic_encoder(inchannels=3):
-    return nn.Sequential(
-        OrderedDict([('enc1', cklayer_no_bn(inchannels, 64)),
-                     ('enc2', cklayer(64, 128)),
-                     ('enc3', cklayer(128, 256)),
-                     ('enc4', cklayer(256, 512)),
-                     ('enc5', cklayer(512, 512)),
-                     ('enc6', cklayer(512, 512)),
-                     ('enc7', cklayer(512, 512)),
-                     ('enc8', cklayer(512, 512))]))
-
-
-def basic_decoder(outchannels=3):
-    return nn.Sequential(transpose_cdklayer(512, 512),
-                         transpose_cdklayer(512, 512),
-                         transpose_cdklayer(512, 512),
-                         transpose_cklayer(512, 512),
-                         transpose_cklayer(512, 256),
-                         transpose_cklayer(256, 128),
-                         transpose_cklayer(128, 64),
-                         nn.Sequential(nn.ConvTranspose2d(64, outchannels, kernel_size=4, stride=2, padding=1),
-                                       nn.Tanh()))
-
-
-def unet_decoder(outChannels=3):
-    return nn.Sequential(
-        OrderedDict([('dec-7', transpose_cdklayer(512, 512)),
-                     ('dec-6', transpose_cdklayer(1024, 512)),
-                     ('dec-5', transpose_cdklayer(1024, 512)),
-                     ('dec-4', transpose_cdklayer(1024, 512)),
-                     ('dec-3', transpose_cdklayer(1024, 256)),
-                     ('dec-2', transpose_cdklayer(512, 128)),
-                     ('dec-1', transpose_cdklayer(256, 64)),
-                     ('decout',
-                      nn.Sequential(nn.ConvTranspose2d(128, outChannels, kernel_size=4, stride=2, padding=1),
-                                    nn.Tanh()))]))
 
 
 class PatchDiscriminator70(nn.Module):
