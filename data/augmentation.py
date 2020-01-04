@@ -22,8 +22,8 @@ def randRescaleAndTranspose(scale, *originalArray):
         else:
             reshape[1] = shape[1] * shortLen / shape[0]
             reshape[0] = shortLen
-        scaledImg = cv2.resize(img, (int(reshape[0]), int(reshape[1]))).transpose((2, 0, 1))
-        #scaledImg=scaledImg.astype(np.float64)
+        scaledImg = cv2.resize(img, (int(reshape[1]), int(reshape[0]))).transpose((2, 0, 1))
+        # scaledImg=scaledImg.astype(np.float64)
         scaledImgs.append(scaledImg)
     return scaledImgs
 
