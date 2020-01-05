@@ -13,18 +13,18 @@ import data.augmentation as aug
 import cv2
 import pickle
 
+platform_linux = 0
+platform_kaggle = 1
+splatform_win = 2
+data_bases = ['/home/patrick/PatrickWorkspace/Datasets', '/kaggle/input', '']
+
 if re.match(r'.*inux.*', sys.platform):
     imagenetdir = r'/run/media/patrick/6114f130-f537-4999-b5f6-33fe2afc51db/imagenet12'
     cifar10dir = r'/run/media/patrick/6114f130-f537-4999-b5f6-33fe2afc51db/cifar10'
-    facadeDir = r'/home/patrick/PatrickWorkspace/Datasets/facades'
-    cityscapesDir = r'/home/patrick/PatrickWorkspace/Datasets/cityscapes'
-    edges2shoesDir = r'/home/patrick/PatrickWorkspace/Datasets/edges2shoes'
 else:
     imagenetdir = r''
     cifar10dir = r''
-    facadeDir = r'F:\Datasets\facades'
-    cityscapesDir = r'F:\Datasets\cityscapes'
-    edges2shoesDir = r''
+
 imagenetSubpath = {'img': {'train': 'img_train', 'test': 'img_test', 'train_t3': 'img_train_t3', 'val': 'img_val'}, \
                    'devkit': {'t3': 'ILSVRC2012_devkit_t3', 't12': 'ILSVRC2012_devkit_t12'},
                    'bbox': {'test_gogs': 'bbox_test_gogs', \
@@ -194,28 +194,26 @@ class ImagenetVal(Dataset):
         pass
 
 
-class GenerativeBasic(Dataset):
-    def __init__(self, dir=None, binary=None):
-        if dir is not None:
-            files = os.listdir(dir)
-            pairlist = []
-            for file in files:
-                image = cv2.imread(os.path.join(dir, file))
-                image = aug.randRescaleAndTranspose(286, image)
-                # pairlist.append(np.expand_dims(image, 0))
-                pairlist.append(image)
-            self.pairsArray = np.concatenate(pairlist, 0)
-        elif binary is not None:
-            with open(binary, 'rb') as file:
-                self.pairsArray = pickle.load(file)
+class ImagePairBasic(Dataset):
+
+    def read_dir(self, dir):
+        files = os.listdir(dir)
+        pairlist = []
+        for file in files:
+            image = cv2.imread(os.path.join(dir, file))
+            image = aug.randRescaleAndTranspose(286, image)
+            pairlist.append(image)
+        self.pairs_array = np.concatenate(pairlist, 0)
+
+    def read_binary(self, binary):
+        with open(binary, 'rb') as file:
+            self.pairs_array = pickle.load(file)
 
     def __len__(self):
-        if self.pairsArray is not None:
-            return self.pairsArray.shape[0]
-        return len(self.files)
+        return self.pairs_array.shape[0]
 
     def __getitem__(self, item):
-        imagepair = self.pairsArray[item]
+        imagepair = self.pairs_array[item]
         real, label = np.split(imagepair, 2, axis=1)
         results = aug.randRescaleAndTranspose(286, real, label)
         results = aug.randCrop(256, *results)
@@ -224,60 +222,82 @@ class GenerativeBasic(Dataset):
 
     def toBinary(self, file):
         with open(file, 'wb') as pkl:
-            pickle.dump(self.pairsArray, pkl)
+            pickle.dump(self.pairs_array, pkl)
 
 
-class FacadesTrain(GenerativeBasic):
-    def __init__(self, pkl=None):
-        if pkl is None:
-            super().__init__(os.path.join(facadeDir, 'train'))
+class FacadesTrain(ImagePairBasic):
+
+    def __init__(self, platform):
+        if platform == platform_kaggle:
+            binary = os.path.join(data_bases[platform], 'facades_train.pkl')
+            self.read_binary(binary)
         else:
-            super().__init__(binary=pkl)
+            dir = os.path.join(data_bases[platform], 'facades', 'train')
+            self.read_dir(dir)
 
 
-class FacadesTest(GenerativeBasic):
-    def __init__(self):
-        self.dir = os.path.join(facadeDir, 'test')
-        self.files = os.listdir(self.dir)
-
-
-class FacadesVal(GenerativeBasic):
-    def __init__(self):
-        self.dir = os.path.join(facadeDir, 'val')
-        self.files = os.listdir(self.dir)
-
-
-class CityscapesTrain(GenerativeBasic):
-    def __init__(self, pkl=None):
-        if pkl is None:
-            super().__init__(os.path.join(cityscapesDir, 'train'))
+class FacadesTest(ImagePairBasic):
+    def __init__(self, platform):
+        if platform == platform_kaggle:
+            binary = os.path.join(data_bases[platform], 'facades_test.pkl')
+            self.read_binary(binary)
         else:
-            super().__init__(binary=pkl)
-    '''def __init__(self):
-        self.dir = os.path.join(cityscapesDir, 'train')
-        self.files = os.listdir(self.dir)'''
+            dir = os.path.join(data_bases[platform], 'facades', 'test')
+            self.read_dir(dir)
 
 
-class CityscapesVal(GenerativeBasic):
-    def __init__(self):
-        self.dir = os.path.join(cityscapesDir, 'val')
-        self.files = os.listdir(self.dir)
+class FacadesVal(ImagePairBasic):
+    def __init__(self, platform):
+        if platform == platform_kaggle:
+            binary = os.path.join(data_bases[platform], 'facades_val.pkl')
+            self.read_binary(binary)
+        else:
+            dir = os.path.join(data_bases[platform], 'facades', 'val')
+            self.read_dir(dir)
 
 
-class Edges2shoesTrain(GenerativeBasic):
-    def __init__(self):
-        self.dir = os.path.join(edges2shoesDir, 'train')
-        self.files = os.listdir(self.dir)
+class CityscapesTrain(ImagePairBasic):
+    def __init__(self, platform):
+        if platform == platform_kaggle:
+            binary = os.path.join(data_bases[platform], 'cityscapes_train.pkl')
+            self.read_binary(binary)
+        else:
+            dir = os.path.join(data_bases[platform], 'cityscapes', 'tarin')
+            self.read_dir(dir)
 
 
-class Edges2shoesVal(GenerativeBasic):
-    def __init__(self):
-        self.dir = os.path.join(edges2shoesDir, 'val')
-        self.files = os.listdir(self.dir)
+class CityscapesVal(ImagePairBasic):
+    def __init__(self, platform):
+        if platform == platform_kaggle:
+            binary = os.path.join(data_bases[platform], 'cityscapes_val.pkl')
+            self.read_binary(binary)
+        else:
+            dir = os.path.join(data_bases[platform], 'cityscapes', 'val')
+            self.read_dir(dir)
+
+
+class Edges2shoesTrain(ImagePairBasic):
+    def __init__(self, platform):
+        if platform == platform_kaggle:
+            binary = os.path.join(data_bases[platform], 'edges2shoes_train.pkl')
+            self.read_binary(binary)
+        else:
+            dir = os.path.join(data_bases[platform], 'edges2shoes', 'tarin')
+            self.read_dir(dir)
+
+
+class Edges2shoesVal(ImagePairBasic):
+    def __init__(self, platform):
+        if platform == platform_kaggle:
+            binary = os.path.join(data_bases[platform], 'edges2shoes_val.pkl')
+            self.read_binary(binary)
+        else:
+            dir = os.path.join(data_bases[platform], 'edges2shoes', 'val')
+            self.read_dir(dir)
 
 
 if __name__ == '__main__':
     # facadesTrain = FacadesTrain()
     # facadesTrain.toBinary(file='./facades_train.pkl')
-    cityscapesTrain=CityscapesTrain()
+    cityscapesTrain = CityscapesTrain()
     cityscapesTrain.toBinary(file='./cityscapes_train.pkl')
