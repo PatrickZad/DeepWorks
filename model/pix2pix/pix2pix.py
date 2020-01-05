@@ -204,7 +204,7 @@ class UnetGenerator(nn.Module):
 class PatchDiscriminator70(nn.Module):
     def __init__(self, config):
         super(PatchDiscriminator70, self).__init__()
-        self.network = nn.Sequential(ck_layer(config.inchannel, 64, norm=None),
+        self.network = nn.Sequential(ck_layer(config.in_channel, 64, norm=None),
                                      ck_layer(64, 128, config.norm),
                                      ck_layer(128, 256, config.norm),
                                      ck_layer(256, 512, config.norm, stride=1))
@@ -218,7 +218,7 @@ class PatchDiscriminator70(nn.Module):
         out = torch.tensor([torch.mean(conv[i, :, :]) for i in range(batchsize)], requires_grad=True)
         if self.cuda:
             out = out.cuda()
-        return out.squeeze()
+        return out
 
 
 class PixelDiscriminator(nn.Module):
@@ -260,15 +260,15 @@ class Pix2Pix:
     def __init__(self, config, generator=generator_unet, discriminator=discriminator_patch):
         self.config = config
         if generator == generator_unet:
-            self.generator = UnetGenerator(config.norm, config.in_channel, config.out_channel)
+            self.generator = UnetGenerator(config)
         elif generator == generator_basic:
-            self.generator = BasicGenerator(config.norm, config.in_channel, config.out_channel)
+            self.generator = BasicGenerator(config)
         if discriminator == discriminator_patch:
-            self.discriminator = PatchDiscriminator70(config.norm, config.out_channel)
+            self.discriminator = PatchDiscriminator70(config)
         elif discriminator == discriminator_pixel:
-            self.discriminator = PixelDiscriminator(config.norm, config.out_channel)
+            self.discriminator = PixelDiscriminator(config)
         elif discriminator == discriminator_image:
-            self.discriminator = ImageDiscriminator(config.norm, config.out_channel)
+            self.discriminator = ImageDiscriminator(config)
 
     def train_model(self, dataloader):
         logpath = os.path.join(self.config.log_dir, '_' + self.config.model_name + '.log')
@@ -282,6 +282,8 @@ class Pix2Pix:
         ganloss = self.config.main_loss()
         for epoch in range(self.config.epoch):
             for step, (sketch, target) in enumerate(dataloader):
+                sketch = sketch.float()
+                target = target.float()
                 if torch.cuda.is_available():
                     sketch = sketch.cuda()
                     target = target.cuda()

@@ -1,0 +1,2 @@
+2020-01-05 18:16:32,216 - model.pix2pix.pix2pix - INFO - 0-0-d_loss:tensor(0.6986)
+2020-01-05 18:16:32,217 - model.pix2pix.pix2pix - INFO - 0-0-g_loss:tensor(2.1910e+09)

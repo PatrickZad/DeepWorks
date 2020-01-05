@@ -212,8 +212,8 @@ class ImagePairBasic(Dataset):
 
     def __getitem__(self, item):
         imagepair = self.pairs_array[item]
-        real, label = np.split(imagepair, 2, axis=1)
-        results = aug.randRescaleAndTranspose(286, real, label)
+        results = np.split(imagepair, 2, axis=2)
+        #results = aug.randRescaleAndTranspose(286, real, label)
         results = aug.randCrop(256, *results)
         results = aug.randHFlip(*results)
         return results[0].copy(), results[1].copy()

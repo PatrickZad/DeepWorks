@@ -12,6 +12,12 @@ ex_config = ExperimentConfig(platform_linux)
 def loss_ex():
     # loss experiments with facades
     facades_train = FacadesTrain(ex_config.platform)
+    # cgan with l1
+    cgan_l1_config = ModelConfig(ex_config)
+    cgan_l1_config.model_name = 'loss_cgan_l1'
+    dataloder = DataLoader(facades_train, batch_size=cgan_l1_config.batch_size, shuffle=True)
+    cgan_l1_model = Pix2Pix(cgan_l1_config)
+    cgan_l1_model.train_model(dataloder)
     # gan only
     gan_only_config = ModelConfig(ex_config)
     gan_only_config.conditional = False
@@ -34,12 +40,6 @@ def loss_ex():
     dataloder = DataLoader(facades_train, batch_size=gan_l1_config.batch_size, shuffle=True)
     gan_l1_model = Pix2Pix(gan_l1_config)
     gan_l1_model.train_model(dataloder)
-    # cgan with l1
-    cgan_l1_config = ModelConfig(ex_config)
-    cgan_l1_config.model_name = 'loss_cgan_l1'
-    dataloder = DataLoader(facades_train, batch_size=cgan_l1_config.batch_size, shuffle=True)
-    cgan_l1_model = Pix2Pix(cgan_l1_config)
-    cgan_l1_model.train_model(dataloder)
 
 
 def generator_ex():
