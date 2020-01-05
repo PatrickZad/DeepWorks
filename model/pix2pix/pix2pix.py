@@ -317,11 +317,11 @@ class Pix2Pix:
                 g_loss.backward()
                 g_optim.step()
                 if step % 64 == 0:
-                    logger.info(str(epoch) + '-' + str(step) + '-d_loss:' + str(d_loss.data))
-                    logger.info(str(epoch) + '-' + str(step) + '-g_loss:' + str(g_loss.data))
+                    logger.info('epoch' + str(epoch) + '-step' + str(step) + '-d_loss:' + str(d_loss.data))
+                    logger.info('epoch' + str(epoch) + '-step' + str(step) + '-g_loss:' + str(g_loss.data))
                     if self.config.print_loss:
-                        print('d_loss:' + str(d_loss.data))
-                        print('g_loss:' + str(g_loss.data))
+                        print('epoch' + str(epoch) + '-step' + str(step) + 'd_loss:' + str(d_loss.data))
+                        print('epoch' + str(epoch) + '-step' + str(step) + 'g_loss:' + str(g_loss.data))
             if epoch % 20 == 0:
                 self.store('epoch' + str(epoch))
 
