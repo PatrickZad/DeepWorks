@@ -168,6 +168,9 @@ class BasicGenerator(nn.Module):
         super(BasicGenerator, self).__init__()
         self.basic_encoder = basic_encoder(config.norm, config.in_channel)
         self.basic_decoder = basic_decoder(config.norm, config.out_channel)
+        if config.cuda:
+            self.basic_encoder = self.basic_encoder.cuda()
+            self.basic_decoder = self.basic_decoder.cuda()
 
     def forward(self, sketch):
         encode = self.basic_encoder.encoder(sketch)
@@ -181,6 +184,9 @@ class UnetGenerator(nn.Module):
         self.basic_encoder = basic_encoder(config.norm, config.in_channel)
         self.unet_decoder = unet_decoder(config.norm, config.out_channel)
         self.cuda = config.cuda
+        if config.cuda:
+            self.basic_encoder = self.basic_encoder.cuda()
+            self.unet_decoder = self.unet_decoder.cuda()
 
     def forward(self, sketch):
         encoder_out = []
@@ -211,6 +217,8 @@ class PatchDiscriminator70(nn.Module):
         self.network.add_module('out', nn.Sequential(nn.Conv2d(512, 1, kernel_size=4, stride=1, padding=1),
                                                      nn.Sigmoid()))
         self.cuda = config.cuda
+        if config.cuda:
+            self.network = self.network.cuda()
 
     def forward(self, input):
         conv = self.network(input)
@@ -228,6 +236,10 @@ class PixelDiscriminator(nn.Module):
         self.conv2 = ck_layer(64, 128, config.norm, kernel=1, stride=1, pad=0)
         self.conv3 = nn.Sequential(nn.Conv2d(128, 1, kernel_size=1, stride=1),
                                    nn.Sigmoid())
+        if config.cuda:
+            self.conv1 = self.conv1.cuda()
+            self.conv2 = self.conv2.cuda()
+            self.conv3 = self.conv3.cuda()
 
     def forward(self, input):
         out1 = self.conv1(input)
@@ -247,7 +259,8 @@ class ImageDiscriminator(nn.Module):
                                      ck_layer(512, 512, config.norm, stride=1))
         self.network.add_module('out', nn.Sequential(nn.Conv2d(512, 1, kernel_size=4, stride=1, padding=1),
                                                      nn.Sigmoid()))
-
+        if config.cuda:
+            self.network=self.network.cuda()
     def forward(self, sketch, target):
         conv = self.network(input)
         return torch.mean(conv)
@@ -269,6 +282,9 @@ class Pix2Pix:
             self.discriminator = PixelDiscriminator(config)
         elif discriminator == discriminator_image:
             self.discriminator = ImageDiscriminator(config)
+        if config.cuda:
+            self.generator = self.generator.cuda()
+            self.discriminator = self.discriminator.cuda()
 
     def train_model(self, dataloader):
         logpath = os.path.join(self.config.log_dir, '_' + self.config.model_name + '.log')
@@ -338,7 +354,7 @@ class Pix2Pix:
 
     def store(self, info):
         info = '_' + info + '_'
-        torch.save(self.generator.stat_dict(),
+        torch.save(self.generator.state_dict(),
                    os.path.join(self.config.save_dir, self.config.model_name + info + 'generator.pt'))
-        torch.save(self.discriminator.stat_dict(),
+        torch.save(self.discriminator.state_dict(),
                    os.path.join(self.config.save_dir, self.config.model_name + info + 'discriminator.pt'))

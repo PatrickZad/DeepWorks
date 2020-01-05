@@ -2,14 +2,13 @@ from torch.utils.data.dataset import Dataset
 import torch
 import os
 import re
-import pickle
 import numpy as np
 import sys
 import re
 import skimage.io as imgio
 from skimage.transform import resize
 import random
-import data.augmentation as aug
+from data.augmentation import randRescaleAndTranspose,randHFlip,randCrop,rgbAlter
 import cv2
 import pickle
 from experiments import platform_linux, platform_kaggle, platform_win
@@ -199,7 +198,7 @@ class ImagePairBasic(Dataset):
         pairlist = []
         for file in files:
             image = cv2.imread(os.path.join(dir, file))
-            image = aug.randRescaleAndTranspose(286, image)
+            image = randRescaleAndTranspose(286, image)
             pairlist.append(image)
         self.pairs_array = np.concatenate(pairlist, 0)
 
@@ -213,9 +212,8 @@ class ImagePairBasic(Dataset):
     def __getitem__(self, item):
         imagepair = self.pairs_array[item]
         results = np.split(imagepair, 2, axis=2)
-        #results = aug.randRescaleAndTranspose(286, real, label)
-        results = aug.randCrop(256, *results)
-        results = aug.randHFlip(*results)
+        results = randCrop(256, *results)
+        results = randHFlip(*results)
         return results[0].copy(), results[1].copy()
 
     def toBinary(self, file):
