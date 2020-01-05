@@ -24,7 +24,7 @@ class ModelConfig(NNconfig):
         self.norm = inst_norm
         self.optim_coefficient_d = 0.5
         self.optim_coefficient_g = 1
-        self.epoch = 500
+        self.epoch = 256
         self.cuda = torch.cuda.is_available()
         self.save_dir = experiments_config.out_base
         self.log_dir = experiments_config.log_base
@@ -316,13 +316,13 @@ class Pix2Pix:
                 g_loss += self.config.l1_coeficient * self.l1_loss(target, generate)
                 g_loss.backward()
                 g_optim.step()
-                if step % 64 == 0:
+                if step % 32 == 0:
                     logger.info('epoch' + str(epoch) + '-step' + str(step) + '-d_loss:' + str(d_loss.data))
                     logger.info('epoch' + str(epoch) + '-step' + str(step) + '-g_loss:' + str(g_loss.data))
                     if self.config.print_loss:
                         print('epoch' + str(epoch) + '-step' + str(step) + 'd_loss:' + str(d_loss.data))
                         print('epoch' + str(epoch) + '-step' + str(step) + 'g_loss:' + str(g_loss.data))
-            if epoch % 20 == 0:
+            if epoch % 32 == 0:
                 self.store('epoch' + str(epoch))
 
     def l1_loss(self, target, generate):
