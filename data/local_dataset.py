@@ -12,10 +12,8 @@ import random
 import data.augmentation as aug
 import cv2
 import pickle
+from experiments import platform_linux, platform_kaggle, platform_win
 
-platform_linux = 0
-platform_kaggle = 1
-splatform_win = 2
 data_bases = ['/home/patrick/PatrickWorkspace/Datasets', '/kaggle/input', '']
 
 if re.match(r'.*inux.*', sys.platform):
@@ -296,8 +294,26 @@ class Edges2shoesVal(ImagePairBasic):
             self.read_dir(dir)
 
 
+class MapTrain(ImagePairBasic):
+    def __init__(self, platform):
+        if platform == platform_kaggle:
+            binary = os.path.join(data_bases[platform], 'maps_train.pkl')
+            self.read_binary(binary)
+        else:
+            dir = os.path.join(data_bases[platform], 'maps', 'train')
+            self.read_dir(dir)
+
+
+class MapVal(ImagePairBasic):
+    def __init__(self, platform):
+        if platform == platform_kaggle:
+            binary = os.path.join(data_bases[platform], 'maps_val.pkl')
+            self.read_binary(binary)
+        else:
+            dir = os.path.join(data_bases[platform], 'maps', 'val')
+            self.read_dir(dir)
+
+
 if __name__ == '__main__':
-    # facadesTrain = FacadesTrain()
-    # facadesTrain.toBinary(file='./facades_train.pkl')
-    cityscapesTrain = CityscapesTrain()
-    cityscapesTrain.toBinary(file='./cityscapes_train.pkl')
+    maptrain = MapTrain(platform_linux)
+    maptrain.toBinary(os.path.join(data_bases[platform_linux], 'maps', 'maps_train.pkl'))

@@ -16,22 +16,26 @@ discriminator_pixel = 1
 discriminator_image = 2
 
 
-class Config(NNconfig):
-    def __init__(self):
+class ModelConfig(NNconfig):
+    def __init__(self, experiments_config):
         self.lr = 2 * 10 ** (-4)
         self.momentum_beta1 = 0.5
         self.momentum_beta2 = 0.999
         self.norm = inst_norm
         self.optim_coefficient_d = 0.5
         self.optim_coefficient_g = 1
-        self.conditional = True
+        self.epoch = 500
+        self.cuda = torch.cuda.is_available()
+        self.save_dir = experiments_config.out_base
+        self.log_dir = experiments_config.log_base
+        # may need to change
         self.in_channel = 3
         self.out_channel = 3
-        self.epoch = 500
-        self.save_dir = None
         self.model_name = None
+        self.conditional = True
         self.batch_size = 1
-        self.cuda = torch.cuda.is_available()
+        self.l1_coeficient = 100
+        self.print_loss = True
 
     def optimizer(self, parameters):
         return torch.optim.Adam(parameters, lr=self.lr, betas=(self.momentum_beta1, self.momentum_beta2))
@@ -266,8 +270,9 @@ class Pix2Pix:
         elif discriminator == discriminator_image:
             self.discriminator = ImageDiscriminator(config.norm, config.out_channel)
 
-    def train_model(self, dataloader, logfile, l1=100):
-        logging.basicConfig(filename=logfile, level=logging.INFO,
+    def train_model(self, dataloader):
+        logpath = os.path.join(self.config.log_dir, '_' + self.config.model_name + '.log')
+        logging.basicConfig(filename=logpath, level=logging.INFO,
                             format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
         logger = logging.getLogger(__name__)
         self.generator.train()
@@ -306,12 +311,15 @@ class Pix2Pix:
                 if self.config.cuda:
                     gene_target = gene_target.cuda()
                 g_loss = ganloss(discriminate_genera, gene_target)
-                g_loss += l1 * self.l1_loss(target, generate)
+                g_loss += self.config.l1_coeficient * self.l1_loss(target, generate)
                 g_loss.backward()
                 g_optim.step()
                 if step % 64 == 0:
                     logger.info(str(epoch) + '-' + str(step) + '-d_loss:' + str(d_loss.data))
                     logger.info(str(epoch) + '-' + str(step) + '-g_loss:' + str(g_loss.data))
+                    if self.config.print_loss:
+                        print('d_loss:' + str(d_loss.data))
+                        print('g_loss:' + str(g_loss.data))
             if epoch % 20 == 0:
                 self.store('epoch' + str(epoch))
 
