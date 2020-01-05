@@ -222,10 +222,7 @@ class PatchDiscriminator70(nn.Module):
 
     def forward(self, input):
         conv = self.network(input)
-        batchsize = conv.shape[0]
-        out = torch.tensor([torch.mean(conv[i, :, :]) for i in range(batchsize)], requires_grad=True)
-        if self.cuda:
-            out = out.cuda()
+        out = torch.mean(conv, dim=(1, 2, 3))
         return out
 
 
@@ -245,7 +242,7 @@ class PixelDiscriminator(nn.Module):
         out1 = self.conv1(input)
         out2 = self.conv2(out1)
         out3 = self.conv3(out2)
-        return torch.mean(out3)
+        return torch.mean(out3, dim=(1, 2, 3))
 
 
 class ImageDiscriminator(nn.Module):
@@ -260,10 +257,11 @@ class ImageDiscriminator(nn.Module):
         self.network.add_module('out', nn.Sequential(nn.Conv2d(512, 1, kernel_size=4, stride=1, padding=1),
                                                      nn.Sigmoid()))
         if config.cuda:
-            self.network=self.network.cuda()
+            self.network = self.network.cuda()
+
     def forward(self, sketch, target):
         conv = self.network(input)
-        return torch.mean(conv)
+        return torch.mean(conv, dim=(1, 2, 3))
 
 
 '''model'''
@@ -321,7 +319,7 @@ class Pix2Pix:
                 d_loss = self.config.optim_coefficient_d * (
                         ganloss(discriminate_real, real_discrim_target)
                         + ganloss(discriminate_genera, gene_discrim_target))
-                d_loss.backward()
+                d_loss.backward(retain_graph=True)
                 d_optim.step()
                 # optimize generator
                 discriminate_genera = self.discriminator(torch.cat((sketch, generate), 3))
@@ -358,3 +356,10 @@ class Pix2Pix:
                    os.path.join(self.config.save_dir, self.config.model_name + info + 'generator.pt'))
         torch.save(self.discriminator.state_dict(),
                    os.path.join(self.config.save_dir, self.config.model_name + info + 'discriminator.pt'))
+
+
+def print_parameters(parameters):
+    for para in parameters:
+        for tensr in para:
+            print(tensr)
+            print(tensr.grad)
