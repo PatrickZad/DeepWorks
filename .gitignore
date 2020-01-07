@@ -5,3 +5,5 @@
 *.png
 *.jpeg
 *.pkl
+/out
+*.pt

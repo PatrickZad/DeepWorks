@@ -3,10 +3,11 @@ from model.pix2pix.pix2pix import ModelConfig, Pix2Pix, batch_norm, generator_ba
 from data.local_dataset import FacadesTrain, FacadesVal, CityscapesTrain, CityscapesVal, MapTrain, MapVal
 from torch.utils.data import DataLoader
 import re, sys, os
-from experiments import platform_kaggle, platform_linux, platform_win, ExperimentConfig
+from experiments import platform_kaggle, platform_linux, platform_win, platform_kaggle_test, ExperimentConfig
 
 '''train'''
-ex_config = ExperimentConfig(platform_linux)
+# ex_config = ExperimentConfig(platform_linux)
+ex_config = ExperimentConfig(platform_kaggle_test)
 
 
 def loss_ex():
@@ -15,31 +16,31 @@ def loss_ex():
     # cgan with l1
     cgan_l1_config = ModelConfig(ex_config)
     cgan_l1_config.model_name = 'loss_cgan_l1'
-    dataloder = DataLoader(facades_train, batch_size=cgan_l1_config.batch_size, shuffle=True)
+    # dataloder = DataLoader(facades_train, batch_size=cgan_l1_config.batch_size, shuffle=True)
     cgan_l1_model = Pix2Pix(cgan_l1_config)
-    cgan_l1_model.train_model(dataloder)
+    cgan_l1_model.train_model(facades_train)
     # gan only
     gan_only_config = ModelConfig(ex_config)
     gan_only_config.conditional = False
     gan_only_config.model_name = 'loss_gan_only'
     gan_only_config.l1_coeficient = 0
-    dataloder = DataLoader(facades_train, batch_size=gan_only_config.batch_size, shuffle=True)
+    # dataloder = DataLoader(facades_train, batch_size=gan_only_config.batch_size, shuffle=True)
     gan_only_model = Pix2Pix(gan_only_config)
-    gan_only_model.train_model(dataloder)
+    gan_only_model.train_model(facades_train)
     # cgan only
     cgan_only_config = ModelConfig(ex_config)
     cgan_only_config.model_name = 'loss_cgan_only'
     cgan_only_config.l1_coeficient = 0
-    dataloder = DataLoader(facades_train, batch_size=cgan_only_config.batch_size, shuffle=True)
+    # dataloder = DataLoader(facades_train, batch_size=cgan_only_config.batch_size, shuffle=True)
     cgan_only_model = Pix2Pix(cgan_only_config)
-    cgan_only_model.train_model(dataloder)
+    cgan_only_model.train_model(facades_train)
     # gan with l1
     gan_l1_config = ModelConfig(ex_config)
     gan_l1_config.conditional = False
     gan_l1_config.model_name = 'loss_gan_l1'
-    dataloder = DataLoader(facades_train, batch_size=gan_l1_config.batch_size, shuffle=True)
+    # dataloder = DataLoader(facades_train, batch_size=gan_l1_config.batch_size, shuffle=True)
     gan_l1_model = Pix2Pix(gan_l1_config)
-    gan_l1_model.train_model(dataloder)
+    gan_l1_model.train_model(facades_train)
 
 
 def generator_ex():
@@ -50,17 +51,17 @@ def generator_ex():
     basic_generator_config.norm = batch_norm
     basic_generator_config.batch_size = 10
     basic_generator_config.model_name = 'generator_basic'
-    dataloader = DataLoader(cityscapes_train, batch_size=basic_generator_config.batch_size, shuffle=True)
+    #dataloader = DataLoader(cityscapes_train, batch_size=basic_generator_config.batch_size, shuffle=True)
     basic_generator_model = Pix2Pix(basic_generator_config, generator_basic)
-    basic_generator_model.train_model(dataloader)
+    basic_generator_model.train_model(cityscapes_train)
     # unet generator
     unet_generator_config = ModelConfig(ex_config)
     unet_generator_config.norm = batch_norm
     unet_generator_config.batch_size = 10
     unet_generator_config.model_name = 'generator_unet'
-    dataloader = DataLoader(cityscapes_train, batch_size=basic_generator_config.batch_size, shuffle=True)
+    #dataloader = DataLoader(cityscapes_train, batch_size=basic_generator_config.batch_size, shuffle=True)
     unet_generator_model = Pix2Pix(basic_generator_config, generator_basic)
-    unet_generator_model.train_model(dataloader)
+    unet_generator_model.train_model(cityscapes_train)
 
 
 def discriminator_ex():
@@ -102,6 +103,6 @@ generator
 '''
 
 if __name__ == '__main__':
-    loss_ex()
-    # generator_ex()
+    #loss_ex()
+    generator_ex()
     # discriminator_ex()

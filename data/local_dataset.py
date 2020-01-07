@@ -8,12 +8,13 @@ import re
 import skimage.io as imgio
 from skimage.transform import resize
 import random
-from data.augmentation import randRescaleAndTranspose,randHFlip,randCrop,rgbAlter
+from data.augmentation import randRescaleAndTranspose, randHFlip, randCrop, rgbAlter
 import cv2
 import pickle
-from experiments import platform_linux, platform_kaggle, platform_win
+from experiments import platform_linux, platform_kaggle, platform_win, platform_kaggle_test
 
-data_bases = ['/home/patrick/PatrickWorkspace/Datasets', '/kaggle/input', '']
+data_bases = ['/home/patrick/PatrickWorkspace/Datasets', '/kaggle/input', '',
+              '/home/patrick/PatrickWorkspace/Datasets/kaggle_test/input']
 
 if re.match(r'.*inux.*', sys.platform):
     imagenetdir = r'/run/media/patrick/6114f130-f537-4999-b5f6-33fe2afc51db/imagenet12'
@@ -224,7 +225,7 @@ class ImagePairBasic(Dataset):
 class FacadesTrain(ImagePairBasic):
 
     def __init__(self, platform):
-        if platform == platform_kaggle:
+        if platform == platform_kaggle or platform == platform_kaggle_test:
             binary = os.path.join(data_bases[platform], 'facades_train.pkl')
             self.read_binary(binary)
         else:
@@ -234,7 +235,7 @@ class FacadesTrain(ImagePairBasic):
 
 class FacadesTest(ImagePairBasic):
     def __init__(self, platform):
-        if platform == platform_kaggle:
+        if platform == platform_kaggle or platform == platform_kaggle_test:
             binary = os.path.join(data_bases[platform], 'facades_test.pkl')
             self.read_binary(binary)
         else:
@@ -244,7 +245,7 @@ class FacadesTest(ImagePairBasic):
 
 class FacadesVal(ImagePairBasic):
     def __init__(self, platform):
-        if platform == platform_kaggle:
+        if platform == platform_kaggle or platform == platform_kaggle_test:
             binary = os.path.join(data_bases[platform], 'facades_val.pkl')
             self.read_binary(binary)
         else:
@@ -254,7 +255,7 @@ class FacadesVal(ImagePairBasic):
 
 class CityscapesTrain(ImagePairBasic):
     def __init__(self, platform):
-        if platform == platform_kaggle:
+        if platform == platform_kaggle or platform == platform_kaggle_test:
             binary = os.path.join(data_bases[platform], 'cityscapes_train.pkl')
             self.read_binary(binary)
         else:
@@ -264,7 +265,7 @@ class CityscapesTrain(ImagePairBasic):
 
 class CityscapesVal(ImagePairBasic):
     def __init__(self, platform):
-        if platform == platform_kaggle:
+        if platform == platform_kaggle or platform == platform_kaggle_test:
             binary = os.path.join(data_bases[platform], 'cityscapes_val.pkl')
             self.read_binary(binary)
         else:
@@ -274,7 +275,7 @@ class CityscapesVal(ImagePairBasic):
 
 class Edges2shoesTrain(ImagePairBasic):
     def __init__(self, platform):
-        if platform == platform_kaggle:
+        if platform == platform_kaggle or platform == platform_kaggle_test:
             binary = os.path.join(data_bases[platform], 'edges2shoes_train.pkl')
             self.read_binary(binary)
         else:
@@ -284,7 +285,7 @@ class Edges2shoesTrain(ImagePairBasic):
 
 class Edges2shoesVal(ImagePairBasic):
     def __init__(self, platform):
-        if platform == platform_kaggle:
+        if platform == platform_kaggle or platform == platform_kaggle_test:
             binary = os.path.join(data_bases[platform], 'edges2shoes_val.pkl')
             self.read_binary(binary)
         else:
@@ -294,7 +295,7 @@ class Edges2shoesVal(ImagePairBasic):
 
 class MapTrain(ImagePairBasic):
     def __init__(self, platform):
-        if platform == platform_kaggle:
+        if platform == platform_kaggle or platform == platform_kaggle_test:
             binary = os.path.join(data_bases[platform], 'maps_train.pkl')
             self.read_binary(binary)
         else:
@@ -304,7 +305,7 @@ class MapTrain(ImagePairBasic):
 
 class MapVal(ImagePairBasic):
     def __init__(self, platform):
-        if platform == platform_kaggle:
+        if platform == platform_kaggle or platform == platform_kaggle_test:
             binary = os.path.join(data_bases[platform], 'maps_val.pkl')
             self.read_binary(binary)
         else:

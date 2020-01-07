@@ -3,12 +3,11 @@ import torch.nn as nn
 from collections import OrderedDict
 import os
 import logging
-from model import NNconfig
+from model import NNconfig, batch_norm, inst_norm
+from torch.utils.data import DataLoader
 
 '''config'''
 # constant
-batch_norm = 0
-inst_norm = 1
 generator_unet = 0
 generator_basic = 1
 discriminator_patch = 0
@@ -18,7 +17,7 @@ discriminator_image = 2
 
 class ModelConfig(NNconfig):
     def __init__(self, experiments_config):
-        self.lr = 2 * 10 ** (-4)
+        self.lr = 2e-4
         self.momentum_beta1 = 0.5
         self.momentum_beta2 = 0.999
         self.norm = inst_norm
@@ -51,7 +50,7 @@ def norm_layer(features, norm=batch_norm):
     if norm == batch_norm:
         layer = nn.BatchNorm2d(features, track_running_stats=False)
     elif norm == inst_norm:
-        layer = nn.InstanceNorm2d(features, affine=True)
+        layer = nn.InstanceNorm2d(features)
     return layer
 
 
@@ -173,9 +172,9 @@ class BasicGenerator(nn.Module):
             self.basic_decoder = self.basic_decoder.cuda()
 
     def forward(self, sketch):
-        encode = self.basic_encoder.encoder(sketch)
-        decode = self.basic_decoder.decoder(encode)
-        return self.basic_decoder.out(decode)
+        encode = self.basic_encoder(sketch)
+        decode = self.basic_decoder(encode)
+        return decode
 
 
 class UnetGenerator(nn.Module):
@@ -210,7 +209,11 @@ class UnetGenerator(nn.Module):
 class PatchDiscriminator70(nn.Module):
     def __init__(self, config):
         super(PatchDiscriminator70, self).__init__()
-        self.network = nn.Sequential(ck_layer(config.in_channel, 64, norm=None),
+        if config.conditional:
+            in_channel = config.in_channel + config.out_channel
+        else:
+            in_channel = config.out_channel
+        self.network = nn.Sequential(ck_layer(in_channel, 64, norm=None),
                                      ck_layer(64, 128, config.norm),
                                      ck_layer(128, 256, config.norm),
                                      ck_layer(256, 512, config.norm, stride=1))
@@ -229,7 +232,11 @@ class PatchDiscriminator70(nn.Module):
 class PixelDiscriminator(nn.Module):
     def __init__(self, config):
         super(PixelDiscriminator, self).__init__()
-        self.conv1 = ck_layer(config.in_channel, 64, norm=None, kernel=1, stride=1, pad=0)
+        if config.conditional:
+            in_channel = config.in_channel + config.out_channel
+        else:
+            in_channel = config.out_channel
+        self.conv1 = ck_layer(in_channel, 64, norm=None, kernel=1, stride=1, pad=0)
         self.conv2 = ck_layer(64, 128, config.norm, kernel=1, stride=1, pad=0)
         self.conv3 = nn.Sequential(nn.Conv2d(128, 1, kernel_size=1, stride=1),
                                    nn.Sigmoid())
@@ -248,7 +255,11 @@ class PixelDiscriminator(nn.Module):
 class ImageDiscriminator(nn.Module):
     def __init__(self, config):
         super(ImageDiscriminator, self).__init__()
-        self.network = nn.Sequential(ck_layer(config.in_channel, 64, norm=None),
+        if config.conditional:
+            in_channel = config.in_channel + config.out_channel
+        else:
+            in_channel = config.out_channel
+        self.network = nn.Sequential(ck_layer(in_channel, 64, norm=None),
                                      ck_layer(64, 128, config.norm),
                                      ck_layer(128, 256, config.norm),
                                      ck_layer(256, 512, config.norm),
@@ -284,53 +295,73 @@ class Pix2Pix:
             self.generator = self.generator.cuda()
             self.discriminator = self.discriminator.cuda()
 
-    def train_model(self, dataloader):
+    def train_model(self, dataset):
         logpath = os.path.join(self.config.log_dir, '_' + self.config.model_name + '.log')
         logging.basicConfig(filename=logpath, level=logging.INFO,
                             format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
         logger = logging.getLogger(__name__)
+        d_dataloader = DataLoader(dataset, batch_size=self.config.batch_size, shuffle=True)
+        g_dataloader = DataLoader(dataset, batch_size=self.config.batch_size, shuffle=True)
         self.generator.train()
         self.discriminator.train()
         d_optim = self.config.optimizer(self.discriminator.parameters())
         g_optim = self.config.optimizer(self.generator.parameters())
-        ganloss = self.config.main_loss()
+        discriminate_generate_loss = self.config.main_loss()
+        discriminate_real_loss = self.config.main_loss()
+        generate_loss = self.config.main_loss()
+        l1_loss = nn.L1Loss()
         for epoch in range(self.config.epoch):
-            for step, (sketch, target) in enumerate(dataloader):
-                sketch = sketch.float()
-                target = target.float()
+            for step, ((sketch_d, target_d), (sketch_g, target_g)) in enumerate(zip(d_dataloader, g_dataloader)):
+                sketch_d = sketch_d.float()
+                target_d = target_d.float()
+                sketch_g = sketch_g.float()
+                target_g = target_g.float()
                 if torch.cuda.is_available():
-                    sketch = sketch.cuda()
-                    target = target.cuda()
-                d_optim.zero_grad()
-                g_optim.zero_grad()
-                generate = self.generator(sketch)
+                    sketch_d = sketch_d.cuda()
+                    target_d = target_d.cuda()
+                    sketch_g = sketch_g.cuda()
+                    target_g = target_g.cuda()
+                generate_d = self.generator(sketch_d)
                 if self.config.conditional:
-                    discriminate_real = self.discriminator(torch.cat((sketch, target), 3))
-                    discriminate_genera = self.discriminator(torch.cat((sketch, generate), 3))
+                    discriminate_real = self.discriminator(torch.cat((sketch_d, target_d), 1))
+                    discriminate_genera = self.discriminator(torch.cat((sketch_d, generate_d), 1))
                 else:
-                    discriminate_real = self.discriminator(target)
-                    discriminate_genera = self.discriminator(generate)
+                    discriminate_real = self.discriminator(target_d)
+                    discriminate_genera = self.discriminator(generate_d)
                 # optimize discriminator
-                real_discrim_target = torch.ones(self.config.batch_size)
-                gene_discrim_target = torch.zeros(self.config.batch_size)
+                d_optim.zero_grad()
+                real_discrim_target = torch.ones(sketch_d.shape[0])
+                gene_discrim_target = torch.zeros(sketch_d.shape[0])
                 if self.config.cuda:
                     real_discrim_target = real_discrim_target.cuda()
                     gene_discrim_target = gene_discrim_target.cuda()
                 d_loss = self.config.optim_coefficient_d * (
-                        ganloss(discriminate_real, real_discrim_target)
-                        + ganloss(discriminate_genera, gene_discrim_target))
-                d_loss.backward(retain_graph=True)
+                        discriminate_real_loss(discriminate_real, real_discrim_target)
+                        + discriminate_generate_loss(discriminate_genera, gene_discrim_target))
+                d_loss.backward()
                 d_optim.step()
                 # optimize generator
-                discriminate_genera = self.discriminator(torch.cat((sketch, generate), 3))
-                gene_target = torch.ones(self.config.batch_size)
+                # print_parameters(self.generator.parameters())
+                g_optim.zero_grad()
+                # print_parameters(self.generator.parameters())
+                generate_g = self.generator(sketch_g)
+                if self.config.conditional:
+                    discriminate_genera = self.discriminator(torch.cat((sketch_g, generate_g), 1))
+                else:
+                    discriminate_genera = self.discriminator(generate_g)
+                gene_target = torch.ones(sketch_g.shape[0])
                 if self.config.cuda:
                     gene_target = gene_target.cuda()
-                g_loss = ganloss(discriminate_genera, gene_target)
-                g_loss += self.config.l1_coeficient * self.l1_loss(target, generate)
+                # print(discriminate_genera)
+                gan_loss = generate_loss(discriminate_genera, gene_target)
+                l_loss = self.config.l1_coeficient * l1_loss(target_g, generate_g)
+                g_loss = gan_loss + l_loss
                 g_loss.backward()
+                # print_parameters(self.generator.parameters())
+                # print_parameters(self.generator.parameters())
                 g_optim.step()
-                if step % 32 == 0:
+                # print_parameters(self.generator.parameters())
+                if step % 16 == 0:
                     logger.info('epoch' + str(epoch) + '-step' + str(step) + '-d_loss:' + str(d_loss.data))
                     logger.info('epoch' + str(epoch) + '-step' + str(step) + '-g_loss:' + str(g_loss.data))
                     if self.config.print_loss:
@@ -340,10 +371,10 @@ class Pix2Pix:
                 self.store('epoch' + str(epoch))
 
     def l1_loss(self, target, generate):
-        batch_size = self.config.batch_size
-        abs = torch.abs(target - generate)
-        loss = torch.sum(abs) / batch_size
-        return loss
+        # batch_size = self.config.batch_size
+        abs_dist = torch.abs(target - generate)
+        loss = torch.sum(abs_dist, dim=(1, 2, 3))
+        return torch.mean(loss)
 
     def __call__(self, sketch):
         self.generator.eval()
@@ -360,6 +391,5 @@ class Pix2Pix:
 
 def print_parameters(parameters):
     for para in parameters:
-        for tensr in para:
-            print(tensr)
-            print(tensr.grad)
+        print(para)
+        # print(para.grad)
