@@ -52,7 +52,7 @@ class ResLayer(nn.Module):
 class BasicGenerator(nn.Module):
     def __init__(self, config):
         super(BasicGenerator, self).__init__()
-        self.enc_conv = nn.Sequential(conv_layer_pad(config.in_channel, 64, stride=1, pad=3),
+        self.enc_conv = nn.Sequential(conv_layer_pad(config.in_channel, 64, kernel=7, stride=1, pad=3),
                                       conv_layer_pad(64, 128),
                                       conv_layer_pad(128, 256))
         self.res_layers = nn.Sequential(ResLayer())
@@ -60,7 +60,8 @@ class BasicGenerator(nn.Module):
             self.res_layers.add_module(ResLayer())
         self.dec_conv = nn.Sequential(transpose_conv_layer_pad(256, 128),
                                       transpose_conv_layer_pad(128, 64),
-                                      conv_layer_pad(64, config.out_channel, stride=1, pad=3))
+                                      conv_layer_pad(64, config.out_channel, kernel=7, stride=1, pad=3),
+                                      nn.Tanh())
         if config.cuda:
             self.enc_conv = self.enc_conv.cuda()
             self.res_layers = self.res_layers.cuda()
@@ -73,13 +74,10 @@ class BasicGenerator(nn.Module):
         return dec
 
 
-class CycleGenerator(nn.Module):
-    def __init__(self):
-        super(CycleGenerator, self).__init__()
-        pass
-
-    def forward(self, x):
-        pass
+class GeneratedBuffer:
+    def __init__(self, batch_size, length=50):
+        self.length = length
+        self.batch_size = batch_size
 
 
 '''model'''

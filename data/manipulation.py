@@ -4,6 +4,30 @@ import numpy as np
 import cv2
 
 
+def toFloat(*images, symmetric=True):
+    float_images = []
+    for img in images:
+        float_images.append(img.astype(np.float32) / 255)
+    results = []
+    if symmetric:
+        for img in float_images:
+            results.append(img * 2 - 1)
+    return results
+
+
+def back2int(symmetric=True, *images):
+    positive_images = []
+    if symmetric:
+        for img in images:
+            positive_images.append((img + 1) / 2)
+    else:
+        positive_images = images
+    int_images = []
+    for img in positive_images:
+        int_images.append((img * 255).astype(np.uint8))
+    return int_images
+
+
 def randRescaleAndTranspose(scale, *originalArray):
     if isinstance(scale, cabc.Iterable):
         shortLen = scale[random.randint(0, len(scale) - 1)]

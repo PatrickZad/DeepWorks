@@ -51,7 +51,7 @@ def generator_ex():
     basic_generator_config.norm = batch_norm
     basic_generator_config.batch_size = 10
     basic_generator_config.model_name = 'generator_basic'
-    #dataloader = DataLoader(cityscapes_train, batch_size=basic_generator_config.batch_size, shuffle=True)
+    # dataloader = DataLoader(cityscapes_train, batch_size=basic_generator_config.batch_size, shuffle=True)
     basic_generator_model = Pix2Pix(basic_generator_config, generator_basic)
     basic_generator_model.train_model(cityscapes_train)
     # unet generator
@@ -59,7 +59,7 @@ def generator_ex():
     unet_generator_config.norm = batch_norm
     unet_generator_config.batch_size = 10
     unet_generator_config.model_name = 'generator_unet'
-    #dataloader = DataLoader(cityscapes_train, batch_size=basic_generator_config.batch_size, shuffle=True)
+    # dataloader = DataLoader(cityscapes_train, batch_size=basic_generator_config.batch_size, shuffle=True)
     unet_generator_model = Pix2Pix(basic_generator_config, generator_basic)
     unet_generator_model.train_model(cityscapes_train)
 
@@ -88,6 +88,32 @@ def discriminator_ex():
 
 
 '''val'''
+model_dir = ['/home/patrick/PatrickWorkspace/DeepWorks/out', '', '']
+out_dir = ['/home/patrick/PatrickWorkspace/DeepWorks/out', '', '']
+
+
+def val_generator(binary, data_val):
+    from model.pix2pix.pix2pix import UnetGenerator
+    import torch
+    import cv2
+    import skimage.io as imgio
+    config = ModelConfig(ex_config)
+    generator = UnetGenerator(config)
+    generator.load_state_dict(torch.load(os.path.join(model_dir[0], binary), map_location='cpu'))
+    dataloader = DataLoader(data_val, batch_size=1)
+    for index, (sketch, target) in enumerate(dataloader):
+        sketch = sketch.float()
+        target = target.float()
+        generate = generator(sketch)
+        # result = torch.cat((generate, target), dim=0).squeeze()
+        result = generate.squeeze()
+        array = result.detach().numpy().transpose(1, 2, 0)
+        imgio.imsave(os.path.join(out_dir[0], str(index) + '.jpg'), array)
+
+
+def quantitative(generate, target):
+    pass
+
 
 '''loss experiments'''
 
@@ -103,6 +129,10 @@ generator
 '''
 
 if __name__ == '__main__':
-    #loss_ex()
-    generator_ex()
+    loss_ex()
+    # generator_ex()
     # discriminator_ex()
+    # val
+    #binary = 'loss_cgan_l1_epoch224_generator.pt'
+    #data = CityscapesVal(platform_linux)
+    #val_generator(binary, data)

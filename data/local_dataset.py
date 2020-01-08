@@ -8,7 +8,7 @@ import re
 import skimage.io as imgio
 from skimage.transform import resize
 import random
-from data.augmentation import randRescaleAndTranspose, randHFlip, randCrop, rgbAlter
+from data.manipulation import toFloat, randRescaleAndTranspose, randHFlip, randCrop, rgbAlter
 import cv2
 import pickle
 from experiments import platform_linux, platform_kaggle, platform_win, platform_kaggle_test
@@ -215,7 +215,36 @@ class ImagePairBasic(Dataset):
         results = np.split(imagepair, 2, axis=2)
         results = randCrop(256, *results)
         results = randHFlip(*results)
-        return results[0].copy(), results[1].copy()
+        float_imgs = toFloat(*results, symmetric=True)
+        return float_imgs
+
+    def toBinary(self, file):
+        with open(file, 'wb') as pkl:
+            pickle.dump(self.pairs_array, pkl)
+
+
+class ImagePairVal(Dataset):
+    def read_dir(self, dir):
+        files = os.listdir(dir)
+        pairlist = []
+        for file in files:
+            image = cv2.imread(os.path.join(dir, file))
+            image = image.transpose((2, 0, 1))
+            pairlist.append(image)
+        self.pairs_array = np.concatenate(pairlist, 0)
+
+    def read_binary(self, binary):
+        with open(binary, 'rb') as file:
+            self.pairs_array = pickle.load(file)
+
+    def __len__(self):
+        return self.pairs_array.shape[0]
+
+    def __getitem__(self, item):
+        imagepair = self.pairs_array[item]
+        results = np.split(imagepair, 2, axis=2)
+        float_imgs = toFloat(*results, symmetric=True)
+        return float_imgs
 
     def toBinary(self, file):
         with open(file, 'wb') as pkl:
@@ -243,7 +272,7 @@ class FacadesTest(ImagePairBasic):
             self.read_dir(dir)
 
 
-class FacadesVal(ImagePairBasic):
+class FacadesVal(ImagePairVal):
     def __init__(self, platform):
         if platform == platform_kaggle or platform == platform_kaggle_test:
             binary = os.path.join(data_bases[platform], 'facades_val.pkl')
@@ -263,7 +292,7 @@ class CityscapesTrain(ImagePairBasic):
             self.read_dir(dir)
 
 
-class CityscapesVal(ImagePairBasic):
+class CityscapesVal(ImagePairVal):
     def __init__(self, platform):
         if platform == platform_kaggle or platform == platform_kaggle_test:
             binary = os.path.join(data_bases[platform], 'cityscapes_val.pkl')
@@ -283,7 +312,7 @@ class Edges2shoesTrain(ImagePairBasic):
             self.read_dir(dir)
 
 
-class Edges2shoesVal(ImagePairBasic):
+class Edges2shoesVal(ImagePairVal):
     def __init__(self, platform):
         if platform == platform_kaggle or platform == platform_kaggle_test:
             binary = os.path.join(data_bases[platform], 'edges2shoes_val.pkl')
@@ -303,7 +332,7 @@ class MapTrain(ImagePairBasic):
             self.read_dir(dir)
 
 
-class MapVal(ImagePairBasic):
+class MapVal(ImagePairVal):
     def __init__(self, platform):
         if platform == platform_kaggle or platform == platform_kaggle_test:
             binary = os.path.join(data_bases[platform], 'maps_val.pkl')

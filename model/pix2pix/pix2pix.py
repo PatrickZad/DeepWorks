@@ -50,7 +50,8 @@ def norm_layer(features, norm=batch_norm):
     if norm == batch_norm:
         layer = nn.BatchNorm2d(features, track_running_stats=False)
     elif norm == inst_norm:
-        layer = nn.InstanceNorm2d(features)
+        layer = nn.InstanceNorm2d(features, affine=True)
+    nn.init.normal_(layer.weight.data, 0, 0.02)
     return layer
 
 
@@ -137,18 +138,22 @@ def basic_encoder(norm, in_channels=3):
 
 
 def basic_decoder(norm, out_channels=3):
-    return nn.Sequential(transpose_cdk_layer(512, 512, norm),
-                         transpose_cdk_layer(512, 512, norm),
-                         transpose_cdk_layer(512, 512, norm),
-                         transpose_ck_layer(512, 512, norm),
-                         transpose_ck_layer(512, 256, norm),
-                         transpose_ck_layer(256, 128, norm),
-                         transpose_ck_layer(128, 64, norm),
-                         nn.Sequential(nn.ConvTranspose2d(64, out_channels, kernel_size=4, stride=2, padding=1),
-                                       nn.Tanh()))
+    decoder = nn.Sequential(transpose_cdk_layer(512, 512, norm),
+                            transpose_cdk_layer(512, 512, norm),
+                            transpose_cdk_layer(512, 512, norm),
+                            transpose_ck_layer(512, 512, norm),
+                            transpose_ck_layer(512, 256, norm),
+                            transpose_ck_layer(256, 128, norm),
+                            transpose_ck_layer(128, 64, norm))
+    out_conv = nn.ConvTranspose2d(64, out_channels, kernel_size=4, stride=2, padding=1)
+    nn.init.normal_(out_conv.weight.data, 0, 0.02)
+    decoder.add_module(nn.Sequential(out_conv, nn.Tanh))
+    return decoder
 
 
 def unet_decoder(norm, out_channels=3):
+    out_conv = nn.ConvTranspose2d(128, out_channels, kernel_size=4, stride=2, padding=1)
+    nn.init.normal_(out_conv.weight.data, 0, 0.02)
     return nn.Sequential(
         OrderedDict([('dec-7', transpose_cdk_layer(512, 512, norm)),
                      ('dec-6', transpose_cdk_layer(1024, 512, norm)),
@@ -157,9 +162,7 @@ def unet_decoder(norm, out_channels=3):
                      ('dec-3', transpose_cdk_layer(1024, 256, norm)),
                      ('dec-2', transpose_cdk_layer(512, 128, norm)),
                      ('dec-1', transpose_cdk_layer(256, 64, norm)),
-                     ('decout',
-                      nn.Sequential(nn.ConvTranspose2d(128, out_channels, kernel_size=4, stride=2, padding=1),
-                                    nn.Tanh()))]))
+                     ('decout', nn.Sequential(out_conv, nn.Tanh()))]))
 
 
 class BasicGenerator(nn.Module):
@@ -217,8 +220,9 @@ class PatchDiscriminator70(nn.Module):
                                      ck_layer(64, 128, config.norm),
                                      ck_layer(128, 256, config.norm),
                                      ck_layer(256, 512, config.norm, stride=1))
-        self.network.add_module('out', nn.Sequential(nn.Conv2d(512, 1, kernel_size=4, stride=1, padding=1),
-                                                     nn.Sigmoid()))
+        out_conv = nn.Conv2d(512, 1, kernel_size=4, stride=1, padding=1)
+        nn.init.normal_(out_conv.weight.data, 0, 0.02)
+        self.network.add_module('out', nn.Sequential(out_conv, nn.Sigmoid()))
         self.cuda = config.cuda
         if config.cuda:
             self.network = self.network.cuda()
@@ -238,8 +242,9 @@ class PixelDiscriminator(nn.Module):
             in_channel = config.out_channel
         self.conv1 = ck_layer(in_channel, 64, norm=None, kernel=1, stride=1, pad=0)
         self.conv2 = ck_layer(64, 128, config.norm, kernel=1, stride=1, pad=0)
-        self.conv3 = nn.Sequential(nn.Conv2d(128, 1, kernel_size=1, stride=1),
-                                   nn.Sigmoid())
+        out_conv = nn.Conv2d(128, 1, kernel_size=1, stride=1)
+        nn.init.normal_(out_conv.weight.data, 0, 0.02)
+        self.conv3 = nn.Sequential(out_conv, nn.Sigmoid())
         if config.cuda:
             self.conv1 = self.conv1.cuda()
             self.conv2 = self.conv2.cuda()
@@ -265,8 +270,9 @@ class ImageDiscriminator(nn.Module):
                                      ck_layer(256, 512, config.norm),
                                      ck_layer(512, 512, config.norm),
                                      ck_layer(512, 512, config.norm, stride=1))
-        self.network.add_module('out', nn.Sequential(nn.Conv2d(512, 1, kernel_size=4, stride=1, padding=1),
-                                                     nn.Sigmoid()))
+        out_conv = nn.Conv2d(512, 1, kernel_size=4, stride=1, padding=1)
+        nn.init.normal_(out_conv, 0, 0.02)
+        self.network.add_module('out', nn.Sequential(out_conv, nn.Sigmoid()))
         if config.cuda:
             self.network = self.network.cuda()
 
@@ -312,11 +318,12 @@ class Pix2Pix:
         l1_loss = nn.L1Loss()
         for epoch in range(self.config.epoch):
             for step, ((sketch_d, target_d), (sketch_g, target_g)) in enumerate(zip(d_dataloader, g_dataloader)):
+                '''
                 sketch_d = sketch_d.float()
                 target_d = target_d.float()
                 sketch_g = sketch_g.float()
-                target_g = target_g.float()
-                if torch.cuda.is_available():
+                target_g = target_g.float()'''
+                if self.config.cuda:
                     sketch_d = sketch_d.cuda()
                     target_d = target_d.cuda()
                     sketch_g = sketch_g.cuda()
