@@ -4,7 +4,8 @@ from model.pix2pix.pix2pix import PatchDiscriminator70
 from model import NNconfig, batch_norm, inst_norm
 import random
 from torch.utils.data import DataLoader
-
+from torch.optim.lr_scheduler import LambdaLR
+import os
 '''config'''
 
 
@@ -16,7 +17,7 @@ class ModelConfig(NNconfig):
         self.norm = inst_norm
         self.optim_coefficient_d = 0.5
         self.optim_coefficient_g = 1
-        self.epoch = 256
+        self.epoch = 200
         self.cuda = torch.cuda.is_available()
         self.save_dir = experiments_config.out_base
         self.log_dir = experiments_config.log_base
@@ -26,19 +27,26 @@ class ModelConfig(NNconfig):
         self.model_name = None
         self.conditional = True
         self.batch_size = 1
-        self.loss_coefficient = 10
+        self.loss_coefficient_forward = 10
+        self.loss_coefficient_backward = 10
         self.print_loss = True
+        self.lr_steady_epoch = 100
+        self.lr_decay = 100
         # only for cycle gan
         self.buffer_size = 50
 
     def optimizer(self, parameters):
         return torch.optim.Adam(parameters, lr=self.lr, betas=(self.momentum_beta1, self.momentum_beta2))
 
-    def change_optimizer(self, parameters, **kwargs):
-        return torch.optim.Adam(parameters, kwargs)
-
     def main_loss(self):
         return nn.MSELoss()
+
+    def schedule_lamda(self):
+        def sch_func(epoch):
+            lr_decay = 1.0 - max(0, epoch - self.lr_steady_epoch) / float(self.lr_decay + 1)
+            return lr_decay
+
+        return sch_func
 
 
 '''build model'''
@@ -103,7 +111,7 @@ class GeneratedBuffer:
         self.max_size = length
         self.actual_size = 0
         self.samp_size = samp_size
-        self.sequence = random.shuffle(range(self.length))
+        self.sequence = random.shuffle(range(length))
         self.next = 0
         self.data = []
 
@@ -140,9 +148,75 @@ class CycleGAN:
         generated_buffer_y = GeneratedBuffer(self.config.batch_size, self.config.buffer_size)
         dataloader_x = DataLoader(dataset_x, batch_size=self.config.batch_size, shuffle=True)
         dataloader_y = DataLoader(dataset_y, batch_size=self.config.batch_size, shuffle=True)
+        optim_gx = self.config.optimizaer(self.generator_x.parameters())
+        scheduler_gx = LambdaLR(optim_gx, self.config.schedule_lamda())
+        optim_gy = self.config.optimizaer(self.generator_y.parameters())
+        scheduler_gy = LambdaLR(optim_gy, self.config.schedule_lamda())
+        optim_dx = self.config.optimizaer(self.discriminator_x.parameters())
+        scheduler_dx = LambdaLR(optim_dx, self.config.schedule_lamda())
+        optim_dy = self.config.optimizaer(self.discriminator_y.parameters())
+        scheduler_dy = LambdaLR(optim_dy, self.config.schedule_lamda())
+        rec_lossfunc_gx = torch.nn.L1Loss()
+        rec_lossfunc_gy = torch.nn.L1Loss()
+        gan_lossfunc_gx = self.config.main_loss()
+        gan_lossfunc_gy = self.config.main_loss()
+        gan_lossfunc_dx_g = self.config.main_loss()
+        gan_lossfunc_dx_r = self.config.main_loss()
+        gan_lossfunc_dy_g = self.config.main_loss()
+        gan_lossfunc_dy_r = self.config.main_loss()
         for epoch in range(self.config.epoch):
             for step, (data_x, data_y) in enumerate(zip(dataloader_x, dataloader_y)):
-                # generator_x
+                # generator_x,x to y direction
+                optim_gx.zere_grad()
+                gen_x = self.generator_x(data_x)
+                dis_x = self.discriminator_x(gen_x)
+                rec_x = self.generator_y(gen_x)
+                dis_x_target = torch.ones(data_x.shape[0])
+                gan_loss_gx = gan_lossfunc_gx(dis_x, dis_x_target)
+                rec_loss_gx = rec_lossfunc_gx(data_x, rec_x)
+                loss_gx = gan_loss_gx + self.config.loss_coefficient_forward * rec_loss_gx
+                loss_gx.bacward()
+                optim_gx.step()
+                generated_buffer_x.add_new(gen_x)
+                # generator_y,y to x direction
+                optim_gy.zere_grad()
+                gen_y = self.generator_y(data_y)
+                dis_y = self.discriminator_y(gen_y)
+                rec_y = self.generator_x(gen_y)
+                dis_y_target = torch.ones(data_y.shape[0])
+                gan_loss_gy = gan_lossfunc_gy(dis_y, dis_y_target)
+                rec_loss_gy = rec_lossfunc_gy(data_y, rec_y)
+                loss_gy = gan_loss_gy + self.config.loss_coefficient_backward * rec_loss_gy
+                loss_gy.bacward()
+                optim_gy.step()
+                generated_buffer_y.add_new(gen_y)
+                # discriminator x
+                optim_dx.zero_grad()
+                gen_x = generated_buffer_x.next_batch()
+                dx_gen = self.discriminator_x(gen_x)
+                dx_real = self.discriminator_x(data_y)
+                dx_gen_target = torch.zeros(gen_x.shape[0])
+                dx_real_target = torch.ones(data_y.shape[0])
+                dx_loss = 0.5 * (gan_lossfunc_dx_g(dx_gen, dx_gen_target) +
+                                 gan_lossfunc_dx_r(dx_real, dx_real_target))
+                dx_loss.backward()
+                optim_dx.step()
+                # discriminator y
+                optim_dy.zero_grad()
+                gen_y = generated_buffer_y.next_batch()
+                dy_gen = self.discriminator_y(gen_y)
+                dy_real = self.discriminator_y(data_x)
+                dy_gen_target = torch.zeros(gen_y.shape[0])
+                dy_real_target = torch.ones(data_x.shape[0])
+                dy_loss = 0.5 * (gan_lossfunc_dy_g(dy_gen, dy_gen_target) +
+                                 gan_lossfunc_dy_r(dy_real, dy_real_target))
+                dy_loss.backward()
+                optim_dy.step()
+            # scheduler
+            scheduler_dx.step()
+            scheduler_dy.step()
+            scheduler_gx.step()
+            scheduler_gy.step()
 
     def __call__(self, sketch_x=None, sketch_y=None):
         result = []
@@ -155,4 +229,12 @@ class CycleGAN:
         return result
 
     def store(self, info):
-        pass
+        info = '_' + info + '_'
+        torch.save(self.generator_x.state_dict(),
+                   os.path.join(self.config.save_dir, self.config.model_name + info + 'generator_x.pt'))
+        torch.save(self.discriminator_x.state_dict(),
+                   os.path.join(self.config.save_dir, self.config.model_name + info + 'discriminator_x.pt'))
+        torch.save(self.generator_y.state_dict(),
+                   os.path.join(self.config.save_dir, self.config.model_name + info + 'generator_y.pt'))
+        torch.save(self.discriminator_y.state_dict(),
+                   os.path.join(self.config.save_dir, self.config.model_name + info + 'discriminator_y.pt'))
