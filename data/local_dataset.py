@@ -13,7 +13,7 @@ import cv2
 import pickle
 from experiments import platform_linux, platform_kaggle, platform_win, platform_kaggle_test
 
-data_bases = ['/home/patrick/PatrickWorkspace/Datasets', '/kaggle/input', '',
+data_bases = ['/home/patrick/PatrickWorkspace/Datasets', '/kaggle/input/train-data', '',
               '/home/patrick/PatrickWorkspace/Datasets/kaggle_test/input']
 
 if re.match(r'.*inux.*', sys.platform):
@@ -230,7 +230,7 @@ class ImagePairVal(Dataset):
         for file in files:
             image = cv2.imread(os.path.join(dir, file))
             image = image.transpose((2, 0, 1))
-            pairlist.append(image)
+            pairlist.append([image])
         self.pairs_array = np.concatenate(pairlist, 0)
 
     def read_binary(self, binary):

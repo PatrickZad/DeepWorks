@@ -318,11 +318,6 @@ class Pix2Pix:
         l1_loss = nn.L1Loss()
         for epoch in range(self.config.epoch):
             for step, ((sketch_d, target_d), (sketch_g, target_g)) in enumerate(zip(d_dataloader, g_dataloader)):
-                '''
-                sketch_d = sketch_d.float()
-                target_d = target_d.float()
-                sketch_g = sketch_g.float()
-                target_g = target_g.float()'''
                 if self.config.cuda:
                     sketch_d = sketch_d.cuda()
                     target_d = target_d.cuda()
@@ -348,9 +343,7 @@ class Pix2Pix:
                 d_loss.backward()
                 d_optim.step()
                 # optimize generator
-                # print_parameters(self.generator.parameters())
                 g_optim.zero_grad()
-                # print_parameters(self.generator.parameters())
                 generate_g = self.generator(sketch_g)
                 if self.config.conditional:
                     discriminate_genera = self.discriminator(torch.cat((sketch_g, generate_g), 1))
@@ -364,10 +357,7 @@ class Pix2Pix:
                 l_loss = self.config.l1_coeficient * l1_loss(target_g, generate_g)
                 g_loss = gan_loss + l_loss
                 g_loss.backward()
-                # print_parameters(self.generator.parameters())
-                # print_parameters(self.generator.parameters())
                 g_optim.step()
-                # print_parameters(self.generator.parameters())
                 if step % 16 == 0:
                     logger.info('epoch' + str(epoch) + '-step' + str(step) + '-d_loss:' + str(d_loss.data))
                     logger.info('epoch' + str(epoch) + '-step' + str(step) + '-g_loss:' + str(g_loss.data))
@@ -378,7 +368,6 @@ class Pix2Pix:
                 self.store('epoch' + str(epoch))
 
     def l1_loss(self, target, generate):
-        # batch_size = self.config.batch_size
         abs_dist = torch.abs(target - generate)
         loss = torch.sum(abs_dist, dim=(1, 2, 3))
         return torch.mean(loss)
@@ -394,9 +383,3 @@ class Pix2Pix:
                    os.path.join(self.config.save_dir, self.config.model_name + info + 'generator.pt'))
         torch.save(self.discriminator.state_dict(),
                    os.path.join(self.config.save_dir, self.config.model_name + info + 'discriminator.pt'))
-
-
-def print_parameters(parameters):
-    for para in parameters:
-        print(para)
-        # print(para.grad)

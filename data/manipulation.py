@@ -15,11 +15,16 @@ def toFloat(*images, symmetric=True):
     return results
 
 
-def back2int(symmetric=True, *images):
+def back2positive(*images):
     positive_images = []
+    for img in images:
+        positive_images.append((img + 1) / 2)
+    return positive_images
+
+
+def back2int(symmetric=True, *images):
     if symmetric:
-        for img in images:
-            positive_images.append((img + 1) / 2)
+        positive_images = back2positive(images)
     else:
         positive_images = images
     int_images = []

@@ -2,19 +2,43 @@ import torch
 import torch.nn as nn
 from model.pix2pix.pix2pix import PatchDiscriminator70
 from model import NNconfig, batch_norm, inst_norm
+import random
+from torch.utils.data import DataLoader
 
 '''config'''
 
 
 class ModelConfig(NNconfig):
     def __init__(self, experiments_config):
-        pass
+        self.lr = 2e-4
+        self.momentum_beta1 = 0.5
+        self.momentum_beta2 = 0.999
+        self.norm = inst_norm
+        self.optim_coefficient_d = 0.5
+        self.optim_coefficient_g = 1
+        self.epoch = 256
+        self.cuda = torch.cuda.is_available()
+        self.save_dir = experiments_config.out_base
+        self.log_dir = experiments_config.log_base
+        # may need to change
+        self.in_channel = 3
+        self.out_channel = 3
+        self.model_name = None
+        self.conditional = True
+        self.batch_size = 1
+        self.loss_coefficient = 10
+        self.print_loss = True
+        # only for cycle gan
+        self.buffer_size = 50
 
     def optimizer(self, parameters):
-        pass
+        return torch.optim.Adam(parameters, lr=self.lr, betas=(self.momentum_beta1, self.momentum_beta2))
+
+    def change_optimizer(self, parameters, **kwargs):
+        return torch.optim.Adam(parameters, kwargs)
 
     def main_loss(self):
-        pass
+        return nn.MSELoss()
 
 
 '''build model'''
@@ -75,9 +99,29 @@ class BasicGenerator(nn.Module):
 
 
 class GeneratedBuffer:
-    def __init__(self, batch_size, length=50):
-        self.length = length
-        self.batch_size = batch_size
+    def __init__(self, samp_size, length):
+        self.max_size = length
+        self.actual_size = 0
+        self.samp_size = samp_size
+        self.sequence = random.shuffle(range(self.length))
+        self.next = 0
+        self.data = []
+
+    def next_batch(self):
+        samp = random.sample(range(self.actual_size), self.samp_size)
+        batch = [torch.unsqueeze(self.data[i], 0) for i in samp]
+        return torch.cat(batch, dim=0)
+
+    def add_new(self, generate_batch):
+        size = generate_batch.shape[0]
+        if self.max_size - self.actual_size >= size:
+            self.data += [generate_batch[i].copy() for i in range(size)]
+        else:
+            replace_size = size - (self.max_size - self.actual_size)
+            replace_index = random.sample(range(self.actual_size), replace_size)
+            for repl, src in zip(replace_index, range(replace_size)):
+                self.data[repl] = generate_batch[src].copy()
+            self.data += [generate_batch[i].copy() for i in range(replace_size, size)]
 
 
 '''model'''
@@ -85,13 +129,30 @@ class GeneratedBuffer:
 
 class CycleGAN:
     def __init__(self, config):
-        pass
+        self.config = config
+        self.generator_x = BasicGenerator(config)
+        self.generator_y = BasicGenerator(config)
+        self.discriminator_x = PatchDiscriminator70(config)
+        self.discriminator_y = PatchDiscriminator70(config)
 
-    def train_model(self, dataset):
-        pass
+    def train_model(self, dataset_x, dataset_y):
+        generated_buffer_x = GeneratedBuffer(self.config.batch_size, self.config.buffer_size)
+        generated_buffer_y = GeneratedBuffer(self.config.batch_size, self.config.buffer_size)
+        dataloader_x = DataLoader(dataset_x, batch_size=self.config.batch_size, shuffle=True)
+        dataloader_y = DataLoader(dataset_y, batch_size=self.config.batch_size, shuffle=True)
+        for epoch in range(self.config.epoch):
+            for step, (data_x, data_y) in enumerate(zip(dataloader_x, dataloader_y)):
+                # generator_x
 
-    def __call__(self, sketch):
-        pass
+    def __call__(self, sketch_x=None, sketch_y=None):
+        result = []
+        if sketch_x is not None:
+            generate_x = self.generator_x(sketch_x)
+            result.append(generate_x)
+        if sketch_y is not None:
+            generate_y = self.generator_x(sketch_y)
+            result.append(generate_y)
+        return result
 
     def store(self, info):
         pass
