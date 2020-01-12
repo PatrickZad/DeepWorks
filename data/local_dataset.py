@@ -288,7 +288,7 @@ class CityscapesTrain(ImagePairBasic):
             binary = os.path.join(data_bases[platform], 'cityscapes_train.pkl')
             self.read_binary(binary)
         else:
-            dir = os.path.join(data_bases[platform], 'cityscapes', 'tarin')
+            dir = os.path.join(data_bases[platform], 'cityscapes', 'train')
             self.read_dir(dir)
 
 

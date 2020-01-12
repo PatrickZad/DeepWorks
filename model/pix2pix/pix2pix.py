@@ -147,7 +147,7 @@ def basic_decoder(norm, out_channels=3):
                             transpose_ck_layer(128, 64, norm))
     out_conv = nn.ConvTranspose2d(64, out_channels, kernel_size=4, stride=2, padding=1)
     nn.init.normal_(out_conv.weight.data, 0, 0.02)
-    decoder.add_module(nn.Sequential(out_conv, nn.Tanh))
+    decoder.add_module('deout', nn.Sequential(out_conv, nn.Tanh()))
     return decoder
 
 
@@ -297,9 +297,6 @@ class Pix2Pix:
             self.discriminator = PixelDiscriminator(config)
         elif discriminator == discriminator_image:
             self.discriminator = ImageDiscriminator(config)
-        if config.cuda:
-            self.generator = self.generator.cuda()
-            self.discriminator = self.discriminator.cuda()
 
     def train_model(self, dataset):
         logpath = os.path.join(self.config.log_dir, '_' + self.config.model_name + '.log')

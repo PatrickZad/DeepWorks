@@ -80,8 +80,8 @@ def discriminator_ex():
 
 
 '''val'''
-model_dir = ['/home/patrick/PatrickWorkspace/DeepWorks/out', '', '']
-out_dir = ['/home/patrick/PatrickWorkspace/DeepWorks/out', '', '']
+model_dir = ['/home/patrick/PatrickWorkspace/DeepWorks/out/pix2pix', '', '']
+out_dir = ['/home/patrick/PatrickWorkspace/DeepWorks/out/pix2pix/loss_gan_only_val', '', '']
 
 
 def val_generator(binary, data_val):
@@ -93,14 +93,14 @@ def val_generator(binary, data_val):
     generator = UnetGenerator(config)
     generator.load_state_dict(torch.load(os.path.join(model_dir[0], binary), map_location='cpu'))
     dataloader = DataLoader(data_val, batch_size=1)
-    for index, (sketch, target) in enumerate(dataloader):
+    for index, (target, sketch) in enumerate(dataloader):
         generate = generator(sketch)
-        result = generate.squeeze()
+        contrast = torch.cat((generate, target), dim=3)
+        result = contrast.squeeze()
         array = result.detach().numpy().transpose(1, 2, 0)
         array = back2positive(array)[0]
-        imgio.imshow(array)
-
-        imgio.imsave(os.path.join(out_dir[0], str(index) + '.png'), array)
+        # imgio.imshow(array)
+        imgio.imsave(os.path.join(out_dir[0], str(index) + '_160.png'), array)
 
 
 def quantitative(generate, target):
@@ -125,6 +125,6 @@ if __name__ == '__main__':
     # generator_ex()
     # discriminator_ex()
     # val
-    binary = 'loss_cgan_l1_epoch192_generator.pt'
+    binary = 'loss_gan_only_epoch160_generator.pt'
     data = FacadesVal(platform_linux)
     val_generator(binary, data)
