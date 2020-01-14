@@ -13,7 +13,7 @@ import cv2
 import pickle
 from experiments import platform_linux, platform_kaggle, platform_win, platform_kaggle_test
 
-data_bases = ['/home/patrick/PatrickWorkspace/Datasets', '/kaggle/input/train-data', '',
+data_bases = ['/home/patrick/PatrickWorkspace/Datasets', '/kaggle/input', '',
               '/home/patrick/PatrickWorkspace/Datasets/kaggle_test/input']
 
 if re.match(r'.*inux.*', sys.platform):
@@ -340,6 +340,88 @@ class MapVal(ImagePairVal):
         else:
             dir = os.path.join(data_bases[platform], 'maps', 'val')
             self.read_dir(dir)
+
+
+labels = [
+    #   name    id      color
+    ('unlabeled', 0, (0, 0, 0)),
+    ('ego vehicle', 1, (0, 0, 0)),
+    ('rectification border', 2, (0, 0, 0)),
+    ('out of roi', 3, (0, 0, 0)),
+    ('static', 4, (0, 0, 0)),
+    ('dynamic', 5, (111, 74, 0)),
+    ('ground', 6, (81, 0, 81)),
+    ('road', 7, (128, 64, 128)),
+    ('sidewalk', 8, (244, 35, 232)),
+    ('parking', 9, (250, 170, 160)),
+    ('rail track', 10, (230, 150, 140)),
+    ('building', 11, (70, 70, 70)),
+    ('wall', 12, (102, 102, 156)),
+    ('fence', 13, (190, 153, 153)),
+    ('guard rail', 14, (180, 165, 180)),
+    ('bridge', 15, (150, 100, 100)),
+    ('tunnel', 16, (150, 120, 90)),
+    ('pole', 17, (153, 153, 153)),
+    ('polegroup', 18, (153, 153, 153)),
+    ('traffic light', 19, (250, 170, 30)),
+    ('traffic sign', 20, (220, 220, 0)),
+    ('vegetation', 21, (107, 142, 35)),
+    ('terrain', 22, (152, 251, 152)),
+    ('sky', 23, (70, 130, 180)),
+    ('person', 24, (220, 20, 60)),
+    ('rider', 25, (255, 0, 0)),
+    ('car', 26, (0, 0, 142)),
+    ('truck', 27, (0, 0, 70)),
+    ('bus', 28, (0, 60, 100)),
+    ('caravan', 29, (0, 0, 90)),
+    ('trailer', 30, (0, 0, 110)),
+    ('train', 31, (0, 80, 100)),
+    ('motorcycle', 32, (0, 0, 230)),
+    ('bicycle', 33, (119, 11, 32)),
+    ('license plate', -1, (0, 0, 142))]
+
+annos = ('color', 'instanceIds', 'labelIds')
+
+
+class OriginCityscapes(Dataset):
+    def __init__(self, dir, anno=annos[2], *city):
+        self.anno_dir = os.path.join(dir, 'annotation')
+        self.anno_postfix = '_000019_gtFine_'
+        self.real_dir = os.path.join(dir, 'real')
+        self.length = 0
+        if city == 'all':
+            self.cities = os.listdir(self.anno_dir)
+        else:
+            self.cities = (city,)
+        self.ids = {}
+        for city in self.cities:
+            files = os.listdir(os.path.join(self.anno_dir, city))
+            fileIds = [filename.split('_')[1] for filename in files]
+            self.ids[city] = list(set(fileIds))
+            self.length += len(self.ids[city])
+
+    def __len__(self):
+        return self.length
+
+    def __getitem__(self, item):
+        #TODO
+        less = None
+        city = None
+        offset=item
+        for city,ids in self.ids.items():
+            pass
+
+
+class OriginCityscapesFineTrain(Dataset):
+    pass
+
+
+class OriginCityscapesFineVal(Dataset):
+    pass
+
+
+class OriginCityscapesFineTest(Dataset):
+    pass
 
 
 if __name__ == '__main__':

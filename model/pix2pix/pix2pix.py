@@ -271,12 +271,12 @@ class ImageDiscriminator(nn.Module):
                                      ck_layer(512, 512, config.norm),
                                      ck_layer(512, 512, config.norm, stride=1))
         out_conv = nn.Conv2d(512, 1, kernel_size=4, stride=1, padding=1)
-        nn.init.normal_(out_conv, 0, 0.02)
+        nn.init.normal_(out_conv.weight.data, 0, 0.02)
         self.network.add_module('out', nn.Sequential(out_conv, nn.Sigmoid()))
         if config.cuda:
             self.network = self.network.cuda()
 
-    def forward(self, sketch, target):
+    def forward(self, input):
         conv = self.network(input)
         return torch.mean(conv, dim=(1, 2, 3))
 

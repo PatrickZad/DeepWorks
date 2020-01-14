@@ -25,6 +25,7 @@ class ModelConfig(NNconfig):
         self.model_name = None
         self.batch_size = 20
         self.print_loss = True
+        self.out_labels = None
 
     def optimizer(self, parameters):
         return torch.optim.SGD(parameters, lr=self.lr, momentum=self.momentum)
@@ -34,28 +35,37 @@ class ModelConfig(NNconfig):
 
 
 class FCN8s(nn.Module):
-    def __init__(self):
+    def __init__(self, config):
         super(FCN8s, self).__init__()
+        self.config = config
         self.vgg = vgg16(pretrained=True)
+        self.subnet1 = None  # conv1-pool3
+        self.pool3_out = nn.Conv2d(256, self.config.out_labels, 1)
+        self.subnet2 = None  # conv4-pool4
+        self.pool4_out = nn.Conv2d(512, self.config.out_labels, 1)
+        self.subnet3 = None  # conv5-conv7out
+        self.pool4_upsample = None
+        self.upsamp2_7 = nn.ConvTranspose2d(self.config.out_labels, self.config.out_labels, kernel_size=4, stride=2,
+                                            padding=1, bias=False)
+
+        self.upsamp2_4_7 = nn.ConvTranspose2d(self.config.out_labels, self.config.out_labels, kernel_size=4, stride=2,
+                                              padding=1, bias=False)
+        self.upsamp8_final = nn.ConvTranspose2d(self.config.out_labels, self.config.out_labels, kernel_size=16,
+                                                stride=8, padding=4, bias=False)
 
     def forward(self, input):
-        pass
+        sub3_out = self.subnet1(input)
+        sub3_scores = self.pool3_out(sub3_out)
+        sub4_out = self.subnet2(sub3_out)
+        sub4_scores = self.pool4_out(sub4_out)
+        conv7_out = self.subnet3(sub4_out)
+        conv_7by2 = self.upsamp2_7(conv7_out)
+        upsamp_4_7 = self.upsamp2_4_7(conv_7by2 + sub4_scores)
+        return self.upsamp8_final(upsamp_4_7 + sub3_scores)
+
+    def train_model(self, dataset):
+        dataloader = DataLoader(dataset, batch_size=self.batch_size, shuffle=True)
 
 
-def statistics():
-    dataset = CityscapesTrain(platform_linux)
-    dataloader = DataLoader(dataset, batch_size=1)
-    labels = {}
-    for real, label in dataloader:
-        img = torch.squeeze(label).numpy()
-        for i in range(256):
-            for j in range(256):
-                pixel = img[:, i, j]
-                key = '('+str(pixel[0]) + ',' + str(pixel[1]) + ',' + str(pixel[2])+')'
-                if key in labels.keys():
-                    labels[key] += 1
-                else:
-                    labels[key] = 1
-    print(labels)
-if __name__=='__main__':
-    statistics()
+if __name__ == '__main__':
+    pass
